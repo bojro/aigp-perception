@@ -87,20 +87,14 @@ class AutolabelConfig:
     # is there and we failed on it - quarantine, never call it a negative.
     unlabelable_area_fraction: float = 0.045
 
-    # Both set from the synthetic-crop measurement, not from taste. Error runs
-    # ~6% of gate side at 0.15 reach and ~17% by 0.30, so 0.15 is where a
-    # carried corner stops being worth writing down, and 0.30 is where the
-    # whole label stops being clean enough to accept without a human.
+    # Set from the synthetic-crop measurement, not from taste: a corner carried
+    # off the frame is wrong by ~6% of gate side at 0.15 of a side, ~17% by
+    # 0.30 and ~44% by 0.50. So 0.15 is where a carried corner stops being
+    # worth writing down at all.
     trust_reach: float = 0.15
-    maximum_extrapolation_reach: float = 0.30
 
-    # Edge support is a second, independent opinion: does the image have an
-    # edge where the label says? Below this a ring agreement means little.
-    minimum_support: float = 0.55
     # What a projected (never measured) ring must score to count as confirmed.
     confirm_support: float = 0.80
-    # How decisively one ring must out-score the other to overrule it.
-    support_margin: float = 0.18
     # Correlation with the learned gate face below which a candidate is not a
     # gate at all. Set from the measured split: genuine gates sit near 0.6,
     # the misread door that prompted this scored 0.28.
@@ -152,9 +146,6 @@ class AutolabelConfig:
     # Two passes: the first travels to the real edge, the second polishes
     # in a tighter band. A third adds nothing.
     region_aperture: bool = True
-    # Tried and rejected: measured against synthetic crops with known answers it
-    # was neutral to slightly worse at every reach band. Kept behind a flag.
-    joint_refine: bool = False
     rescue_unmeasured: bool = True
     edge_refine_passes: int = 2
     edge_proximity_frac: float = 1.0
@@ -901,6 +892,15 @@ def refine_pose_jointly(
     really does step, and solve one homography against all of them at once.
     Evidence from the opening then constrains the outer corners and vice versa,
     which is exactly what the separate fits could not do.
+
+    Use it only where the normal path has failed. Applied to every label it
+    makes things worse: it lifts single-anchor labels (outer .51->.54, inner
+    .55->.60) but degrades two-ring ones (.88->.72), because when both rings
+    were traced the per-ring sub-pixel fit and the least-squares snap are
+    already finer than this solve. Measured against synthetic crops with known
+    answers it came out neutral to slightly worse at every reach band - which
+    is why this is a rescue for labels that have no fit at all, not a general
+    refinement.
     """
     height, width = field.shape[:2]
     offsets = np.arange(-radius, radius + step, step, dtype=np.float32)
@@ -1264,19 +1264,6 @@ def gate_candidates(
         scored.sort(key=lambda row: -row[0])
         _, anchor, points, residual = scored[0]
 
-        # PLACEHOLDER_JOINT
-        # One last solve against every edge still visible, from both rings at
-        # once. This is where a cropped gate gains: the opening's sides help
-        # place the outer corners that no longer have sides of their own.
-        # Measured on real frames it lifts single-anchor labels (outer .51->.54,
-        # inner .55->.60) and degrades two-ring ones (.88->.72), because when
-        # both rings were traced the per-ring sub-pixel fit and the
-        # least-squares snap are already finer than this solve. So it runs only
-        # where there is a gap for it to fill.
-        if config.joint_refine and field is not None and anchor != "both":
-            together = refine_pose_jointly(field, points)
-            if together is not None:
-                points = together
         points = normalise_ring_order(points)
 
         if not _plausible_quad(points[:4], width, height):
@@ -1587,13 +1574,6 @@ def _distinct_apertures(options: list[np.ndarray]) -> list[np.ndarray]:
             continue
         kept.append(quad)
     return kept
-
-
-def _extrapolation_reach(points: np.ndarray, width: int, height: int) -> float:
-    """Furthest any keypoint sits outside the frame, in pixels."""
-    dx = np.maximum(np.maximum(-points[:, 0], points[:, 0] - (width - 1)), 0.0)
-    dy = np.maximum(np.maximum(-points[:, 1], points[:, 1] - (height - 1)), 0.0)
-    return float(np.max(np.hypot(dx, dy)))
 
 
 def _plausible_extent(points: np.ndarray, width: int, height: int) -> bool:

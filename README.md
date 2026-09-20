@@ -82,7 +82,7 @@ reads 0.517 box mAP50-95 on a random split and 0.283 on blocks.
 
 ## Layout
 
-    aigp_perception/     the engine - autolabeller, hybrid labeller, camera model
+    aigp_perception/     the engine - autolabeller, hybrid labeller
     harnesses/           validation: ground truth, A/B bench, label validator, galleries
     experiments/         the experiments behind the numbers above, results in docstrings
     diagnostics/         one-off scripts used to find specific failures
