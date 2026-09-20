@@ -80,9 +80,16 @@ duplicates and a random train/val split scores the model on what it memorised.
 Hold out **contiguous blocks** instead. This is not a detail: the same model
 reads 0.517 box mAP50-95 on a random split and 0.283 on blocks.
 
+## The trained model
+
+`models/gate_pose_hand434.onnx` is the current output of this pipeline and the
+model the aircraft should fly -- see `models/README.md` for how it was trained,
+what is established about it and what is not.
+
 ## Layout
 
     aigp_perception/     the engine - autolabeller, hybrid labeller
+    models/              trained weights, ONNX for the Orin
     harnesses/           validation: ground truth, A/B bench, label validator, galleries
     experiments/         the experiments behind the numbers above, results in docstrings
     diagnostics/         one-off scripts used to find specific failures

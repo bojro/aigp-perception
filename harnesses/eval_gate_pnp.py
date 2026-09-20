@@ -32,7 +32,7 @@ from pathlib import Path
 
 import numpy as np
 
-sys.path.insert(0, str(Path.home() / "dev/aigp-perception"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 
 def load_labels(lab_dir: Path) -> dict[str, np.ndarray]:
@@ -85,7 +85,9 @@ def main() -> int:
     args.out.mkdir(parents=True, exist_ok=True)
 
     for w in args.weights:
-        name = Path(w).parent.parent.name
+        # runs/<tag>/weights/best.pt -> <tag>; a loose checkpoint -> its stem.
+        wp = Path(w)
+        name = wp.parent.parent.name if wp.parent.name == "weights" else wp.stem
         model = YOLO(w)
         dets = solves = 0
         reproj, kperr = [], []
