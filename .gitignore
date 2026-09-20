@@ -5,6 +5,14 @@ work/
 *.pt
 *.onnx
 *.engine
+
+# Exception: the shipped gate-pose model. "Reproducible from the capture plus
+# this code" is true of a checkpoint and not true of this one -- the capture is
+# hundreds of megabytes outside every repo and the annotations are a Roboflow
+# export, so rebuilding it means re-downloading both and re-running a GPU.
+# 18 MB for the pair is the cheaper side of that trade.
+!models/gate_pose_hand434.onnx
+!models/gate_pose_hand434.pt
 *.npy
 __pycache__/
 *.py[cod]
