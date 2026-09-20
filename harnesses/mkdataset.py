@@ -6,7 +6,7 @@ memorised - which is why the existing 0.90 mAP cannot be trusted. Holding out
 CONTIGUOUS BLOCKS instead means validation frames are separated from every
 training frame by a stretch of walking, so the score reflects generalisation.
 """
-import csv, shutil, sys
+import csv, os, shutil, sys
 from collections import defaultdict
 from pathlib import Path
 

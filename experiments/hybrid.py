@@ -9,6 +9,7 @@ which is the whole vision system in one line.
 import glob, sys, time, warnings
 warnings.filterwarnings("ignore")
 import cv2, numpy as np
+from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import aigp_perception.autolabel_gate_pose as A
 from ultralytics import YOLO
