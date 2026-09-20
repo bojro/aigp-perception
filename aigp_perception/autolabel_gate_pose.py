@@ -49,6 +49,13 @@ FLIP_INDEX = [1, 0, 3, 2, 5, 4, 7, 6]
 
 IMAGE_SUFFIXES = {".bmp", ".jpeg", ".jpg", ".png", ".webp"}
 
+# How much of each side gets probed. Sampling only the middle was quietly
+# fatal for clipped gates: when the frame cuts a side, the part still visible
+# is usually near one END of it, so the middle-60% window measured nothing and
+# the corner went unclaimed even though it sat in plain view. Stations falling
+# outside the image are skipped anyway, so widening costs a whole gate nothing.
+SIDE_SPAN_LO, SIDE_SPAN_HI = 0.06, 0.94
+
 # Canonical front face, clockwise from top-left, centred on the origin.
 CANONICAL_OUTER = np.array(
     [[-0.5, -0.5], [0.5, -0.5], [0.5, 0.5], [-0.5, 0.5]], np.float32
@@ -106,12 +113,23 @@ class AutolabelConfig:
     # Longest-over-shortest side of the outer quad. Past this the gate is so
     # nearly edge-on that its opening is not meaningfully observable.
     maximum_aspect: float = 4.0
+    # Claimed corners must span at least this share of the gate side they
+    # assert, or they are sitting on something other than this gate.
+    minimum_corner_spread: float = 0.25
     # Also cap the error as a share of gate size, so a 70px gate cannot pass on
     # an absolute tolerance that would be a twentieth of it.
     relative_alignment: float = 0.045
+    # Pixel budget grows with the gate, because a nearer gate's edges are
+    # physically wider in the image.
+    alignment_size_share: float = 0.008
     # Probes one SIDE must afford before it counts as measured. A corner needs
     # both of its sides measured before the label claims it.
-    minimum_side_stations: int = 5
+    # Probes one SIDE must afford before it counts as measured. Lowering this
+    # mainly helps close gates, whose sides are largely off the frame: 5 leaves
+    # 46% of them with enough points for PnP, 3 gives 48%, 2 gives 54%. Two is
+    # thin evidence for a line, and a corner still needs BOTH its sides to
+    # pass, so 3 is the compromise.
+    minimum_side_stations: int = 3
     # Corners the image vouches for, below which there is no usable label.
     minimum_confirmed_keypoints: int = 4
 
@@ -146,6 +164,7 @@ class AutolabelConfig:
     # Two passes: the first travels to the real edge, the second polishes
     # in a tighter band. A third adds nothing.
     region_aperture: bool = True
+    mask_opening: bool = True
     rescue_unmeasured: bool = True
     edge_refine_passes: int = 2
     edge_proximity_frac: float = 1.0
@@ -669,7 +688,8 @@ def side_alignments(
         direction = (end - start) / length
         normal = np.array([-direction[1], direction[0]], np.float32)
         misses: list[float] = []
-        for t in np.linspace(0.2, 0.8, int(np.clip(length / 10.0, 5, 40))):
+        for t in np.linspace(SIDE_SPAN_LO, SIDE_SPAN_HI,
+                             int(np.clip(length / 10.0, 5, 40))):
             base = start + t * length * direction
             samples = base[None, :] + offsets[:, None] * normal[None, :]
             if (samples[:, 0] < 1).any() or (samples[:, 0] > width - 2).any():
@@ -777,6 +797,77 @@ def quad_from_sides(sides: list[tuple[np.ndarray, np.ndarray]], shape) -> np.nda
     return quad
 
 
+def _outward_orange(mask: np.ndarray, quad: np.ndarray, step: float = 9.0) -> list:
+    """Per side: the share of in-frame stations with orange just beyond it."""
+    height, width = mask.shape[:2]
+    centre = quad.mean(axis=0)
+    shares = []
+    for index in range(4):
+        a, b = quad[index], quad[(index + 1) % 4]
+        length = float(np.linalg.norm(b - a))
+        if length < 12:
+            shares.append(None)
+            continue
+        direction = (b - a) / length
+        normal = np.array([-direction[1], direction[0]], np.float32)
+        if np.dot(normal, (a + b) / 2 - centre) < 0:
+            normal = -normal                       # make it point outward
+        hit = total = 0
+        for t in np.linspace(0.12, 0.88, 25):
+            point = a + t * length * direction + normal * step
+            x, y = int(round(point[0])), int(round(point[1]))
+            if not (0 <= x < width and 0 <= y < height):
+                continue
+            total += 1
+            hit += mask[y, x] > 0
+        shares.append(hit / total if total >= 5 else None)
+    return shares
+
+
+def opening_from_mask(
+    mask: np.ndarray, shape, minimum_area: int = 4000,
+    minimum_outward: float = 0.80,
+) -> np.ndarray | None:
+    """Find the opening from the mask alone, without needing the outer square.
+
+    On a close gate the outer square is the least reliable thing in the frame,
+    because most of it is outside the frame - and every other route to the
+    opening derives it from that square, so a bad outer quad yields a
+    meaningless opening. The opening itself is plainly present though: a region
+    of not-orange that the gate encloses.
+
+    Counting boundary pixels cannot separate it from the room beyond a clipped
+    gate, since both are bounded by the same silhouette. Direction can. Step
+    outward from a side of the opening and you land on the gate; step outward
+    from the room and you land on more room.
+    """
+    height, width = shape[:2]
+    inverted = cv2.bitwise_not(mask)
+    count, labels, stats, _ = cv2.connectedComponentsWithStats(inverted, 8)
+    best = None
+    for index in range(1, count):
+        if stats[index, cv2.CC_STAT_AREA] < minimum_area:
+            continue
+        component = (labels == index).astype(np.uint8) * 255
+        contours, _ = cv2.findContours(
+            component, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+        )
+        if not contours:
+            continue
+        contour = max(contours, key=cv2.contourArea)
+        quad = quad_from_hull(contour, shape, clipped=True)
+        if quad is None:
+            quad = fit_quadrilateral(contour)
+        if quad is None or not _plausible_quad(quad, width, height):
+            continue
+        shares = [v for v in _outward_orange(mask, quad) if v is not None]
+        if len(shares) < 2 or float(np.mean(shares)) < minimum_outward:
+            continue
+        if best is None or mean_side_length(quad) > mean_side_length(best):
+            best = order_corners(quad)
+    return best
+
+
 def edge_support(
     field: np.ndarray, quad: np.ndarray, tolerance: float = 2.5,
     radius: float = 6.0, step: float = 0.25,
@@ -805,7 +896,8 @@ def edge_support(
         direction = (end - start) / length
         normal = np.array([-direction[1], direction[0]], np.float32)
         side_hits = side_total = 0
-        for t in np.linspace(0.2, 0.8, int(np.clip(length / 10.0, 5, 40))):
+        for t in np.linspace(SIDE_SPAN_LO, SIDE_SPAN_HI,
+                             int(np.clip(length / 10.0, 5, 40))):
             base = start + t * length * direction
             samples = base[None, :] + offsets[:, None] * normal[None, :]
             if (samples[:, 0] < 1).any() or (samples[:, 0] > width - 2).any():
@@ -859,7 +951,8 @@ def edge_alignment(
             continue
         direction = (end - start) / length
         normal = np.array([-direction[1], direction[0]], np.float32)
-        for t in np.linspace(0.2, 0.8, int(np.clip(length / 10.0, 5, 40))):
+        for t in np.linspace(SIDE_SPAN_LO, SIDE_SPAN_HI,
+                             int(np.clip(length / 10.0, 5, 40))):
             base = start + t * length * direction
             samples = base[None, :] + offsets[:, None] * normal[None, :]
             if (samples[:, 0] < 1).any() or (samples[:, 0] > width - 2).any():
@@ -1171,6 +1264,15 @@ def gate_candidates(
                 instances.append(shared)
             continue
 
+        # Straight from the mask, needing no outer square. This is the one that
+        # works when the gate is close enough to fly through, where the outer
+        # square is mostly off the frame and everything derived from it is a
+        # guess.
+        if config.mask_opening:
+            from_mask = opening_from_mask(mask, image.shape)
+            if from_mask is not None:
+                inner_options.append(_best_corners(field, gray, from_mask, config))
+
         # The opening's rim survives in the outline even when it is no longer a
         # hole, as the stretch dipping inside the convex hull. Four such sides
         # give the opening directly, with no dependence on the outer ring -
@@ -1361,7 +1463,7 @@ def gate_candidates(
         if field is not None:
             instance.verified = verified_keypoints(
                 field, points,
-                min(config.maximum_alignment_px, config.relative_alignment * side),
+                _alignment_tolerance(side, config),
                 config.minimum_side_stations,
             )
         if instance_note:
@@ -1391,6 +1493,30 @@ def gate_candidates(
             points, width, height, side, config.trust_reach, instance.suppress,
             instance.verified,
         )
+
+        # Corners have to be spread like the gate they describe. Per-corner
+        # verification asks whether the image has an edge at each point, and
+        # unrelated structure - a pole, a gate standing further away - can
+        # satisfy that. A label asserting a large gate while huddling its
+        # claimed corners into a small patch has found edges belonging to
+        # something else. Healthy labels span about 1.16 of their own gate
+        # side; these failures run 0.08 to 0.11.
+        #
+        # The gate is still there, so drop the corners rather than the gate:
+        # what remains is a box, which asserts the thing exists without
+        # teaching a corner that sits on a pole.
+        spread_ok = True
+        if int((claimed_visibility > 0).sum()) >= 2 and side > 1:
+            spread = points[claimed_visibility > 0]
+            span = max(float(np.ptp(spread[:, 0])), float(np.ptp(spread[:, 1])))
+            spread_ok = span / side >= config.minimum_corner_spread
+        if not spread_ok:
+            instance.verified = np.zeros(8, bool)
+            instance.notes.append("corners_scattered")
+            claimed_visibility = keypoint_visibility(
+                points, width, height, side, config.trust_reach,
+                instance.suppress, instance.verified,
+            )
         claimed = int((claimed_visibility > 0).sum())
 
         if side < config.minimum_outer_side_px:
@@ -1427,9 +1553,7 @@ def gate_candidates(
             # its sides sit from the image's own edges - in absolute pixels,
             # and also relative to the gate, so a small gate still has to be
             # proportionally right rather than merely close in pixel terms.
-            allowed = min(
-                config.maximum_alignment_px, config.relative_alignment * side
-            )
+            allowed = _alignment_tolerance(side, config)
             confirmed = int((claimed_visibility > 0).sum())
             instance.notes.append(f"kp{confirmed}")
             if confirmed < config.minimum_confirmed_keypoints:
@@ -1438,6 +1562,13 @@ def gate_candidates(
                 # teaches the detector that this is a gate without teaching it
                 # corners nobody checked. Dropping it instead would teach the
                 # opposite: that a gate filling the view is background.
+                #
+                # Keep whatever corners the image did verify. On a gate the
+                # drone is about to fly through, two confirmed opening corners
+                # are not a rounding error - they are the edge it has to steer
+                # between, and they are measured, not guessed. Flag the label
+                # as too thin for pose supervision, but do not delete evidence
+                # that is sitting there in the picture.
                 instance.flags.append("box_only")
             if not math.isfinite(alignment):
                 instance.flags.append("unverified")
@@ -1576,6 +1707,20 @@ def _distinct_apertures(options: list[np.ndarray]) -> list[np.ndarray]:
     return kept
 
 
+def _alignment_tolerance(side: float, config: "AutolabelConfig") -> float:
+    """How far a side may sit from the image's edge, for a gate this size.
+
+    A flat pixel budget quietly punishes the close gates. Four pixels is a
+    generous 3% of a 130px gate and a punishing 0.4% of a 1000px one, whose
+    edges are wider and softer simply because it is nearer. So the floor grows
+    slowly with the gate while the relative cap still holds the small ones to
+    account - and the close-range gates, the ones being flown through, stop
+    failing a test calibrated for distant ones.
+    """
+    floor = max(config.maximum_alignment_px, config.alignment_size_share * side)
+    return min(floor, config.relative_alignment * side) if side > 0 else config.maximum_alignment_px
+
+
 def _plausible_extent(points: np.ndarray, width: int, height: int) -> bool:
     """Is any worthwhile part of this gate actually on screen?"""
     xs = np.clip(points[:, 0], 0, width - 1)
@@ -1635,10 +1780,12 @@ def keypoint_visibility(
     visibility = visibility.astype(int)
     # A ring the image cannot confirm is not written down. Better an honest gap
     # than eight confident numbers of which four were never checked.
-    if suppress == "outer":
-        visibility[:4] = 0
-    elif suppress == "inner":
-        visibility[4:] = 0
+    # NOTE: `suppress` predates per-corner verification and is no longer
+    # applied. It discarded a whole ring because the ring as a whole could not
+    # be checked, which threw away corners that were individually measurable -
+    # on close gates that cost 131 on-screen outer corners, and with them the
+    # fourth point PnP needs. Per-corner verification below already refuses
+    # anything the image does not back, one corner at a time.
     if verified is not None:
         # Claim only the corners the image vouches for. A corner carried a
         # little past the frame is fine when the sides forming it were both

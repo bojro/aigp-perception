@@ -91,7 +91,7 @@ def main() -> int:
     # duplicates, so a random split would score the model on what it memorised.
     hold = max(int(round(1.0 / max(args.val_fraction, 1e-6))), 2) if args.val_fraction > 0 else 0
 
-    rows, kept_geo, kept_net, dropped = [], 0, 0, 0
+    rows, kept_geo, kept_net, kept_box, dropped = [], 0, 0, 0, 0
     for index, path in enumerate(frames):
         image = cv2.imread(str(path))
         if image is None:
@@ -100,10 +100,25 @@ def main() -> int:
         field = orange_field(image)
         mask = orange_mask(image, config)
 
-        instances = [
-            item for item in gate_candidates(image, config)
-            if item.verdict == "auto"
-        ]
+        found = gate_candidates(image, config)
+        instances = [item for item in found if item.verdict == "auto"]
+
+        # Keep the box-only gates too. These are the ones the frame has cut so
+        # badly that no corner could be confirmed - which is precisely the gate
+        # the drone is about to fly through. They claim no keypoints, so they
+        # cannot teach a wrong corner; they assert only that a gate is here,
+        # and leaving them out teaches the opposite: that a gate filling the
+        # view is background. Size is the guard, since a large orange ring that
+        # already passed the gate-ness test is not a signage board.
+        for item in found:
+            if item.verdict != "review" or "box_only" not in item.flags:
+                continue
+            if item.outer_side_px < config.minimum_outer_side_px * 5:
+                continue
+            if "unlike_gate" in item.flags:
+                continue
+            instances.append(item)
+            kept_box += 1
         kept_geo += len(instances)
 
         result = model.predict(image, imgsz=args.imgsz, conf=args.conf,
@@ -131,6 +146,15 @@ def main() -> int:
                 field, fixed, allowed, config.minimum_side_stations
             )
             if int(verified.sum()) < config.minimum_confirmed_keypoints:
+                dropped += 1
+                continue
+            # Same spread test the labeller applies to its own output: corners
+            # have to be scattered like the gate they describe. A proposal can
+            # have every claimed corner land on a real edge and still be wrong,
+            # because the edges belong to a pole or to a gate further away.
+            claimed = fixed[verified]
+            span = max(float(np.ptp(claimed[:, 0])), float(np.ptp(claimed[:, 1])))
+            if side > 1 and span / side < config.minimum_corner_spread:
                 dropped += 1
                 continue
             through, _ = opening_is_see_through(image, mask, fixed[4:])
@@ -179,7 +203,8 @@ def main() -> int:
         writer.writeheader(); writer.writerows(rows)
 
     print(f"\n{len(frames)} frames -> {len(rows)} gates "
-          f"({kept_geo} from geometry, {kept_net} recovered from the detector, "
+          f"({kept_geo} from geometry, of which {kept_box} box-only; "
+          f"{kept_net} recovered from the detector; "
           f"{dropped} proposals discarded).")
     print(f"Dataset under {out}.")
     return 0
