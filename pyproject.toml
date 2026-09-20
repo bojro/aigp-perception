@@ -1,0 +1,21 @@
+[project]
+name = "aigp-perception"
+version = "0.1.0"
+description = "Geometric and hybrid gate-keypoint labelling for AI Grand Prix"
+requires-python = ">=3.10"
+dependencies = ["opencv-python>=4.8", "numpy>=1.24"]
+
+[project.optional-dependencies]
+# Only the hybrid labeller and the training experiments need a detector.
+detector = ["ultralytics>=8.4", "torch", "torchvision"]
+
+[project.scripts]
+aigp-autolabel = "aigp_perception.autolabel_gate_pose:main"
+aigp-hybrid-label = "aigp_perception.yolo_assisted_label:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["aigp_perception*"]

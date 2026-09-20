@@ -1,0 +1,13 @@
+# Datasets run to hundreds of megabytes and weights are binaries; both are
+# reproducible from the capture plus this code, so neither belongs in git.
+datasets/
+work/
+*.pt
+*.onnx
+*.engine
+*.npy
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.DS_Store
