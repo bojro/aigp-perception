@@ -20,6 +20,7 @@ and a client too slow to keep up misses frames rather than accruing a backlog.
 import argparse
 import sys
 import threading
+from pathlib import Path
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -97,6 +98,17 @@ def worker(args):
     print("[live] camera open", flush=True)
 
     ema = lambda old, new: new if old is None else 0.9 * old + 0.1 * new
+    # One process can hold /dev/video0, so if frames are wanted while the
+    # stream is up, the stream is what has to write them.
+    saver = None
+    if args.save_every > 0:
+        d = Path(args.save_dir or
+                 f"/home/dcl/gate-compare/frames/{time.strftime('%m%d_%H%M%S')}")
+        d.mkdir(parents=True, exist_ok=True)
+        saver = {"dir": d, "n": 0, "next": time.monotonic()}
+        print(f"[live] saving one frame every {args.save_every:g}s -> {d}",
+              flush=True)
+
     ma = mb = mcap = menc = None
     last = time.perf_counter()
     fps = None
@@ -108,6 +120,17 @@ def worker(args):
             if not ok:
                 time.sleep(0.05)
                 continue
+            if saver is not None:
+                now_s = time.monotonic()
+                if now_s >= saver["next"]:
+                    # The untouched full-resolution frame, not the annotated
+                    # pane: these are training pictures, and overlays drawn on
+                    # them would be baked into the label's own evidence.
+                    cv2.imwrite(str(saver["dir"] / f"f{saver['n']:05d}.jpg"), frame)
+                    saver["n"] += 1
+                    saver["next"] = now_s + args.save_every
+                    stats.update(saved=saver["n"])
+
             small = cv2.resize(frame, (args.width, args.height))
 
             t = time.perf_counter()
@@ -217,6 +240,12 @@ def main():
     p.add_argument("--conf", type=float, default=0.4)
     p.add_argument("--quality", type=int, default=70)
     p.add_argument("--half", action="store_true")
+    p.add_argument("--save-every", type=float, default=0.0,
+                   help="seconds between saved stills; 0 disables. Frames 1/30 s "
+                        "apart are near-duplicates that cost disk and labelling "
+                        "time and leak across a random split, so 0.5 matches the "
+                        "2 fps the original walk-around used.")
+    p.add_argument("--save-dir", default="")
     p.add_argument("--camera", default="/dev/video0")
     p.add_argument("--cam-w", type=int, default=1920)
     p.add_argument("--cam-h", type=int, default=1080)
