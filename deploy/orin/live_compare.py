@@ -18,6 +18,7 @@ anything new simply waits. Each frame is therefore sent once, to each client,
 and a client too slow to keep up misses frames rather than accruing a backlog.
 """
 import argparse
+import json
 import sys
 import threading
 from pathlib import Path
@@ -27,7 +28,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 sys.path.insert(0, "/home/dcl/gate-inference")
 import cv2
 import numpy as np
-from inference import GateDetector, open_camera
+from inference import Gate, GateDetector, open_camera
 
 OUTER, INNER = slice(0, 4), slice(4, 8)
 C_OUT, C_IN, C_AIM = (0, 200, 255), (0, 255, 90), (255, 80, 255)
@@ -69,8 +70,19 @@ def draw(frame, gates, title, colour, ms):
         primary = i == 0
         for sl, c in ((OUTER, C_OUT), (INNER, C_IN)):
             pts, vis = g.keypoints[sl], g.kpt_visible[sl]
-            if vis.all():
-                cv2.polylines(v, [pts.astype(np.int32)], True, c, 2 if primary else 1)
+            thick = 2 if primary else 1
+            # Per-edge rather than a closed polyline. A polyline needs all four
+            # corners, which is precisely the case that fails on a close-up
+            # gate -- so the frames worth looking at drew nothing at all. Every
+            # edge whose two corners were both detected is drawn; an edge with
+            # a missing corner is not drawn, and a missing corner is not
+            # marked. Only what the detector actually found appears.
+            for i in range(4):
+                if not (vis[i] and vis[(i + 1) % 4]):
+                    continue
+                a, b = pts[i], pts[(i + 1) % 4]
+                cv2.line(v, (int(a[0]), int(a[1])), (int(b[0]), int(b[1])),
+                         c, thick, cv2.LINE_AA)
             for (x, y), ok in zip(pts, vis):
                 if ok:
                     cv2.circle(v, (int(x), int(y)), 4 if primary else 2, c, -1)
@@ -89,6 +101,25 @@ def draw(frame, gates, title, colour, ms):
 
 
 def worker(args):
+    # Two thresholds, and the second is the one that decides how much of a
+    # ring gets drawn. `conf` is the box score, which decides whether a gate is
+    # found at all; KPT_CONF_THRES is per-corner, and a corner below it is
+    # marked invisible -- so its edges vanish even though the gate was found.
+    # It is a class attribute on Gate, set once for both detectors.
+    # Per-frame detection statistics, written alongside the stream.
+    #
+    # One process can hold /dev/video0, so measuring used to mean killing the
+    # stream -- which makes the operator work the gate blind, unable to see
+    # what the camera sees while walking the range that is being measured.
+    # The stream already runs both detectors on every frame; it may as well
+    # record what they found.
+    stats_fh = open(args.stats_log, "a", buffering=1) if args.stats_log else None
+    if stats_fh:
+        print(f"[live] logging per-frame detections -> {args.stats_log}", flush=True)
+
+    Gate.KPT_CONF_THRES = args.kpt_conf
+    print(f"[live] box conf {args.conf}  keypoint conf {args.kpt_conf}", flush=True)
+
     a = GateDetector(args.weights_a, imgsz=args.imgsz, conf=args.conf,
                      device="0", half=args.half)
     b = GateDetector(args.weights_b, imgsz=args.imgsz, conf=args.conf,
@@ -139,6 +170,28 @@ def worker(args):
             t = time.perf_counter()
             gb = b.detect(small)
             mb = ema(mb, (time.perf_counter() - t) * 1000)
+
+            if stats_fh is not None:
+                def summarise(gates):
+                    if not gates:
+                        return {"n": 0}
+                    g = max(gates, key=lambda q: (q.box[2] - q.box[0]) * (q.box[3] - q.box[1]))
+                    x1, y1, x2, y2 = (float(t) for t in g.box)
+                    h, w = small.shape[:2]
+                    return {
+                        "n": len(gates),
+                        "conf": round(float(g.conf), 3),
+                        # Fraction of the frame the gate fills: the proxy for
+                        # how close the aircraft is, which is what the
+                        # close-up failure is indexed by.
+                        "area": round(max(0.0, x2 - x1) * max(0.0, y2 - y1) / (w * h), 4),
+                        "vis": [int(b) for b in g.kpt_visible],
+                        "kpt_conf": [round(float(c), 3) for c in g.kpt_conf],
+                    }
+                stats_fh.write(json.dumps({
+                    "t": round(time.monotonic(), 4),
+                    "a": summarise(ga), "b": summarise(gb),
+                }) + "\n")
 
             pa = draw(small, ga, args.name_a, (120, 200, 255), ma)
             pb = draw(small, gb, args.name_b, (120, 255, 180), mb)
@@ -237,7 +290,13 @@ def main():
     p.add_argument("--width", type=int, default=640)
     p.add_argument("--height", type=int, default=360)
     p.add_argument("--imgsz", type=int, default=640)
-    p.add_argument("--conf", type=float, default=0.4)
+    p.add_argument("--conf", type=float, default=0.25,
+                   help="box confidence: whether a gate is detected at all")
+    p.add_argument("--stats-log", default="",
+                   help="append per-frame detection statistics as JSONL")
+    p.add_argument("--kpt-conf", type=float, default=0.25,
+                   help="per-corner confidence; below this a corner is marked "
+                        "invisible and its edges are not drawn")
     p.add_argument("--quality", type=int, default=70)
     p.add_argument("--half", action="store_true")
     p.add_argument("--save-every", type=float, default=0.0,

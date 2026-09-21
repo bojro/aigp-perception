@@ -44,7 +44,14 @@ class Gate:
     box: tuple[float, float, float, float]      # x1, y1, x2, y2
     keypoints: np.ndarray                       # (8, 2) float32
     kpt_conf: np.ndarray                        # (8,)   float32
-    kpt_conf_thres: float = 0.5
+    # Measured at a real gate on 2026-09-21 over 1345 frames. The runner needs
+    # four visible corners and clears its whole six-frame history when a frame
+    # falls short, so this threshold decides how often the policy can act at
+    # all: 0.5 gives 36%, 0.25 gives 59%. The gate itself was detected in 100%
+    # of frames at every setting -- what was missing was never the gate, only
+    # its corners, which is why this never looked like a detection problem.
+    # 0.5 was never chosen for this aircraft; it was a default nobody set.
+    kpt_conf_thres: float = 0.25
     # Filled in by the detector when a pose was recovered.
     pose: Optional[object] = None
     kpt_visible: np.ndarray = field(init=False)
@@ -172,7 +179,7 @@ class GateDetector:
 
     def __init__(self, weights: str | Path,
                  imgsz: int = 640, conf: float = 0.4, iou: float = 0.45,
-                 kpt_conf: float = 0.5, provider: str = "auto",
+                 kpt_conf: float = 0.25, provider: str = "auto",
                  pose_solver: Optional[Callable] = None, warmup: bool = True):
         self.session = make_session(Path(weights), provider)
         self.input_name = self.session.get_inputs()[0].name
