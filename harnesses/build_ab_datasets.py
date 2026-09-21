@@ -104,17 +104,35 @@ def main() -> int:
     stems = sorted(p.stem for p in CAPTURE.iterdir() if p.suffix.lower() == ".jpg")
     print(f"  capture: {len(stems)} frames")
 
-    split_of = {s: ("val" if (i // BLOCK) % HOLD_EVERY == HOLD_EVERY - 1 else "train")
-                for i, s in enumerate(stems)}
+    train_all = os.environ.get("AIGP_SPLIT") == "all"
+    if train_all:
+        # Every frame trains. There is then no held-out number and the model is
+        # judged by eye on the aircraft instead -- a deliberate trade, taken
+        # because the labels are scarce and the failure we are chasing
+        # (close-up gates that crop at the frame edge) is easier to see in a
+        # live overlay than to capture in a mAP over a handful of frames.
+        #
+        # A few frames are still copied into val, because Ultralytics needs a
+        # validation loader to run at all. They are training frames. The
+        # metrics printed against them measure fit and NOTHING about
+        # generalisation, and must never be quoted as a result.
+        split_of = {s: "train" for s in stems}
+    else:
+        split_of = {s: ("val" if (i // BLOCK) % HOLD_EVERY == HOLD_EVERY - 1 else "train")
+                    for i, s in enumerate(stems)}
 
     # Does the held-out side actually contain human labels? Without them the
     # evaluation has no ground truth and only self-scored numbers come back.
-    val_hand = [s for s in stems if split_of[s] == "val" and s in hand]
-    print(f"\n  val blocks hold {sum(1 for s in stems if split_of[s]=='val')} frames, "
-          f"of which {len(val_hand)} are hand-labelled "
-          f"({sum(len(hand[s]) for s in val_hand)} gates)")
-    if not val_hand:
-        raise SystemExit("no hand labels in the held-out blocks: no ground truth")
+    if train_all:
+        print(f"\n  AIGP_SPLIT=all: every one of {len(stems)} frames trains, "
+              f"{len(hand)} of them hand-labelled. No held-out set.")
+    else:
+        val_hand = [s for s in stems if split_of[s] == "val" and s in hand]
+        print(f"\n  val blocks hold {sum(1 for s in stems if split_of[s]=='val')} frames, "
+              f"of which {len(val_hand)} are hand-labelled "
+              f"({sum(len(hand[s]) for s in val_hand)} gates)")
+        if not val_hand:
+            raise SystemExit("no hand labels in the held-out blocks: no ground truth")
 
     resized: dict[str, Path] = {}
     shared = OUT / "images"
@@ -156,6 +174,20 @@ def main() -> int:
             counts[f"{sp}_gate"] += len(lines)
             if use_hand and s in hand:
                 counts[f"{sp}_handframe"] += 1
+        if train_all:
+            # Ultralytics will not start without a validation loader. These are
+            # training frames, chosen evenly across the capture so the loader
+            # sees the same variety the trainer does. Any metric printed
+            # against them is fit, not generalisation.
+            usable = [s for s in stems if s in resized]
+            step = max(1, len(usable) // 40)
+            for s in usable[::step][:40]:
+                link = root / "images" / "val" / f"{s}.jpg"
+                if not link.exists():
+                    link.symlink_to(resized[s].resolve())
+                (root / "labels" / "val" / f"{s}.txt").write_text(
+                    (root / "labels" / "train" / f"{s}.txt").read_text())
+                counts["val_img"] += 1
         (root / "data.yaml").write_text(DATA_YAML.format(path=root))
         print(f"\n  {tag}: train {counts['train_img']} img / {counts['train_gate']} gates"
               f" | val {counts['val_img']} img / {counts['val_gate']} gates"
