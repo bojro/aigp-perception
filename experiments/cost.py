@@ -11,13 +11,14 @@ import time, warnings
 warnings.filterwarnings("ignore")
 import cv2, numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from aigp_perception import paths as P
 import aigp_perception.autolabel_gate_pose as A
 
 cfg = A.AutolabelConfig()
 RADIUS, STEP = cfg.edge_refine_radius, 0.25
 SAMPLES = int(2 * RADIUS / STEP) + 1
 
-img = cv2.imread("/Users/bojro/Downloads/gate frames/0919_214639_000073.jpg")
+img = cv2.imread(str(P.CAPTURE / "0919_214639_000073.jpg"))
 small = cv2.resize(img, (640, 360))          # the stream the drone actually gets
 field_s = A.orange_field(small)
 

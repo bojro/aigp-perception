@@ -11,12 +11,13 @@ warnings.filterwarnings("ignore")
 import cv2, numpy as np
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from aigp_perception import paths as P
 import aigp_perception.autolabel_gate_pose as A
 from ultralytics import YOLO
 
-model = YOLO("/Users/bojro/Downloads/best.pt")
+model = YOLO(str(P.TEAMMATE_PT))
 cfg = A.AutolabelConfig()
-frames = sorted(glob.glob("/Users/bojro/Downloads/gate frames/*.jpg"))[::6]
+frames = P.frames()[::6]
 
 raw, refined, refine_ms, improved, worsened = [], [], [], 0, 0
 for path in frames:

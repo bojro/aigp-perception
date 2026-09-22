@@ -5,9 +5,10 @@ from pathlib import Path
 import glob, os, sys
 import cv2, numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from aigp_perception import paths as P
 import aigp_perception.autolabel_gate_pose as A
 
-SP = str(Path(__file__).resolve().parents[1] / "work")
+SP = str(P.WORK)
 out = f"{SP}/{sys.argv[1]}"
 predicate = eval(f"lambda it: {sys.argv[2]}")
 stride = int(sys.argv[3]) if len(sys.argv) > 3 else 3
@@ -16,7 +17,7 @@ for f in glob.glob(f"{out}/*.jpg"): os.remove(f)
 
 cfg = A.AutolabelConfig()
 count = 0
-_all = sorted(glob.glob("/Users/bojro/Downloads/gate frames/*.jpg"))[::stride]
+_all = P.frames()[::stride]
 _matched = []
 for _p in _all:
     _img = cv2.imread(_p)

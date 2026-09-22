@@ -15,9 +15,10 @@ from pathlib import Path
 import glob, sys, time
 import cv2, numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from aigp_perception import paths as P
 import aigp_perception.autolabel_gate_pose as A
 
-SP = str(Path(__file__).resolve().parents[1] / "work")
+SP = str(P.WORK)
 SIZE, MARGIN = 192, 0.60
 TEMPLATE = np.load(f"{SP}/gate_template.npy")
 CANON = (A.CANONICAL_OUTER * SIZE * MARGIN + SIZE / 2).astype(np.float32)
@@ -62,7 +63,7 @@ def refine(grey_image, outer, side):
 cfg = A.AutolabelConfig()
 rows = []
 start = time.time()
-for path in sorted(glob.glob("/Users/bojro/Downloads/gate frames/*.jpg"))[::12]:
+for path in P.frames()[::12]:
     img = cv2.imread(path)
     if img is None: continue
     grey = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY).astype(np.float32)

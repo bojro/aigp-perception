@@ -2,9 +2,10 @@ import sys
 from pathlib import Path
 import cv2, numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from aigp_perception import paths as P
 from aigp_perception.autolabel_gate_pose import AutolabelConfig, orange_mask
-SP = str(Path(__file__).resolve().parents[1] / "work")
-SRC = "/Users/bojro/Downloads/gate frames"
+SP = str(P.WORK)
+SRC = str(P.CAPTURE)
 cfg = AutolabelConfig()
 for stem in ("0919_214639_000073", "0919_214639_000087", "0919_220524_000277"):
     img = cv2.imread(f"{SRC}/{stem}.jpg")

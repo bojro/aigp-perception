@@ -7,9 +7,10 @@ from pathlib import Path
 import glob, os, sys
 import cv2, numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from aigp_perception import paths as P
 import aigp_perception.autolabel_gate_pose as A
 
-SP = str(Path(__file__).resolve().parents[1] / "work")
+SP = str(P.WORK)
 LO, HI = float(sys.argv[1]), float(sys.argv[2])
 out = f"{SP}/crops_border"
 os.makedirs(out, exist_ok=True)
@@ -17,7 +18,7 @@ for f in glob.glob(f"{out}/*.jpg"): os.remove(f)
 
 cfg = A.AutolabelConfig()
 hits = []
-for path in sorted(glob.glob("/Users/bojro/Downloads/gate frames/*.jpg"))[::3]:
+for path in P.frames()[::3]:
     img = cv2.imread(path)
     if img is None: continue
     for it in A.gate_candidates(img, cfg):

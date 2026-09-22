@@ -8,21 +8,23 @@ import sys, warnings, shutil
 warnings.filterwarnings("ignore")
 from pathlib import Path
 from ultralytics import YOLO
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from aigp_perception import paths as P
 
-SP = Path(str(Path(__file__).resolve().parents[1] / "work"))
+SP = P.WORK
 DATA = str(SP / "hybrid" / "data_abs.yaml")
 mode = sys.argv[1]
 
 if mode == "baseline":
     print("=== BASELINE: the model as trained by the teammate, on our held-out blocks ===")
-    m = YOLO("/Users/bojro/Downloads/best.pt")
+    m = YOLO(str(P.TEAMMATE_PT))
     r = m.val(data=DATA, imgsz=640, device="mps", verbose=False, plots=False,
               project=str(SP / "runs"), name="baseline", exist_ok=True)
     print(f"BOX  mAP50={r.box.map50:.4f}  mAP50-95={r.box.map:.4f}")
     print(f"POSE mAP50={r.pose.map50:.4f}  mAP50-95={r.pose.map:.4f}")
 else:
     print("=== FINE-TUNE on hybrid labels ===")
-    m = YOLO("/Users/bojro/Downloads/best.pt")
+    m = YOLO(str(P.TEAMMATE_PT))
     m.train(data=DATA, epochs=60, patience=15, imgsz=640, batch=16,
             device="mps", workers=4, verbose=False, plots=False,
             project=str(SP / "runs"), name="hybrid_ft", exist_ok=True,

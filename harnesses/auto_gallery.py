@@ -12,9 +12,10 @@ import cv2
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from aigp_perception import paths as P
 import aigp_perception.autolabel_gate_pose as A
 
-SRC = Path("/Users/bojro/Downloads/gate frames")
+SRC = P.CAPTURE
 out = Path(sys.argv[1])
 dest = out / "auto_only"
 dest.mkdir(parents=True, exist_ok=True)

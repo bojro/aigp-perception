@@ -11,14 +11,15 @@ import csv, glob, sys, warnings
 warnings.filterwarnings("ignore")
 import cv2, numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from aigp_perception import paths as P
 import aigp_perception.autolabel_gate_pose as A
 from ultralytics import YOLO
 
-SP = str(Path(__file__).resolve().parents[1] / "work")
-model = YOLO("/Users/bojro/Downloads/best.pt")
+SP = str(P.WORK)
+model = YOLO(str(P.TEAMMATE_PT))
 cfg = A.AutolabelConfig()
 
-frames = sorted(glob.glob("/Users/bojro/Downloads/gate frames/*.jpg"))[::6]
+frames = P.frames()[::6]
 matched, missed_by_model, extra_by_model, ref_total = [], 0, 0, 0
 
 for path in frames:

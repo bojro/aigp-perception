@@ -2,9 +2,10 @@ import sys
 from pathlib import Path
 import cv2, numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from aigp_perception import paths as P
 import aigp_perception.autolabel_gate_pose as A
-SP = str(Path(__file__).resolve().parents[1] / "work")
-img = cv2.imread("/Users/bojro/Downloads/gate frames/0919_214639_000594.jpg")
+SP = str(P.WORK)
+img = cv2.imread(str(P.CAPTURE / "0919_214639_000594.jpg"))
 H, W = img.shape[:2]
 colour = {"auto": (90,230,90), "review": (0,190,255), "rejected": (60,60,230)}
 for item in A.gate_candidates(img, A.AutolabelConfig()):

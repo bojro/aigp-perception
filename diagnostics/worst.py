@@ -3,11 +3,12 @@ from pathlib import Path
 import glob
 import cv2, numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from aigp_perception import paths as P
 import aigp_perception.autolabel_gate_pose as A
-SP = str(Path(__file__).resolve().parents[1] / "work")
+SP = str(P.WORK)
 cfg = A.AutolabelConfig()
 found = []
-for path in sorted(glob.glob("/Users/bojro/Downloads/gate frames/*.jpg"))[::6]:
+for path in P.frames()[::6]:
     img = cv2.imread(path)
     for item in A.gate_candidates(img, cfg):
         if item.verdict == "rejected" or item.anchor != "both": continue

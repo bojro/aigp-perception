@@ -3,8 +3,9 @@ from pathlib import Path
 import glob
 import cv2, numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from aigp_perception import paths as P
 from aigp_perception.autolabel_gate_pose import AutolabelConfig, orange_mask, fit_quadrilateral
-SRC="/Users/bojro/Downloads/gate frames"; cfg=AutolabelConfig()
+SRC=str(P.CAPTURE); cfg=AutolabelConfig()
 stems=["0919_214639_000102","0919_214639_000210","0919_214639_000390",
        "0919_214639_000474","0919_220524_000054","0919_220524_000282"]
 for stem in stems:

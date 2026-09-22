@@ -1,9 +1,12 @@
 """Render Claude's eyeball estimates against the geometric fit, side by side."""
 import cv2, numpy as np
+import sys
 from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from aigp_perception import paths as P
 
-SP = Path(str(Path(__file__).resolve().parents[1] / "work"))
-SRC = Path("/Users/bojro/Downloads/gate frames")
+SP = P.WORK
+SRC = P.CAPTURE
 OUT = SP / "compare"; OUT.mkdir(exist_ok=True)
 W, H = 1920, 1080
 

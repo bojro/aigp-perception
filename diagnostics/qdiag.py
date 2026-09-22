@@ -3,13 +3,14 @@ from pathlib import Path
 import os
 import cv2, numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from aigp_perception import paths as P
 import aigp_perception.autolabel_gate_pose as A
-SP=str(Path(__file__).resolve().parents[1] / "work")
+SP=str(P.WORK)
 os.makedirs(f"{SP}/quar", exist_ok=True)
 cfg=A.AutolabelConfig()
 names=[l.strip() for l in open("/tmp/q.txt") if l.strip()][:9]
 for n in names:
-    img=cv2.imread(f"/Users/bojro/Downloads/gate frames/{n}"); H,W=img.shape[:2]
+    img=cv2.imread(f"{P.CAPTURE}/{n}"); H,W=img.shape[:2]
     mask=A.orange_mask(img,cfg)
     padded=cv2.copyMakeBorder(mask,1,1,1,1,cv2.BORDER_CONSTANT,value=0)
     cnts,hier=cv2.findContours(padded,cv2.RETR_CCOMP,cv2.CHAIN_APPROX_SIMPLE)

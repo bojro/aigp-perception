@@ -2,10 +2,11 @@ import sys
 from pathlib import Path
 import cv2, numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from aigp_perception import paths as P
 import aigp_perception.autolabel_gate_pose as A
 
-SP = str(Path(__file__).resolve().parents[1] / "work")
-path = "/Users/bojro/Downloads/gate frames/0919_214639_000594.jpg"
+SP = str(P.WORK)
+path = str(P.CAPTURE / "0919_214639_000594.jpg")
 img = cv2.imread(path); H, W = img.shape[:2]
 cfg = A.AutolabelConfig()
 mask = A.orange_mask(img, cfg)

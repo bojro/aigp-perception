@@ -9,9 +9,10 @@ from pathlib import Path
 import glob, importlib, dataclasses
 import cv2, numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from aigp_perception import paths as P
 import aigp_perception.autolabel_gate_pose as A
 
-SRC = "/Users/bojro/Downloads/gate frames"
+SRC = str(P.CAPTURE)
 FRAMES = sorted(glob.glob(f"{SRC}/*.jpg"))[::6]
 
 

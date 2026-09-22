@@ -4,9 +4,10 @@ from pathlib import Path
 import glob
 import cv2, numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from aigp_perception import paths as P
 from aigp_perception.autolabel_gate_pose import AutolabelConfig, orange_mask
 
-SRC = "/Users/bojro/Downloads/gate frames"
+SRC = str(P.CAPTURE)
 files = sorted(glob.glob(f"{SRC}/*.jpg"))[::17][:70]
 
 for close_k, iters in ((9, 2), (5, 1), (3, 1), (0, 0)):

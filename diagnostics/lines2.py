@@ -11,10 +11,11 @@ from pathlib import Path
 import math
 import cv2, numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from aigp_perception import paths as P
 from aigp_perception.autolabel_gate_pose import AutolabelConfig, orange_mask, order_corners
 
-SP = str(Path(__file__).resolve().parents[1] / "work")
-SRC = "/Users/bojro/Downloads/gate frames"
+SP = str(P.WORK)
+SRC = str(P.CAPTURE)
 
 
 def _on_border(a, b, shape, margin=5):

@@ -9,6 +9,7 @@ import glob, sys, time, warnings
 warnings.filterwarnings("ignore")
 import cv2, numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from aigp_perception import paths as P
 import aigp_perception.autolabel_gate_pose as A
 
 cfg = A.AutolabelConfig()
@@ -50,7 +51,7 @@ def refine(field, quad, radius, step, max_stations, passes):
 # Reference gates at race resolution, with a network-like error injected.
 cases = []
 rng = np.random.default_rng(7)
-for path in sorted(glob.glob("/Users/bojro/Downloads/gate frames/*.jpg"))[::15]:
+for path in P.frames()[::15]:
     full = cv2.imread(path)
     if full is None: continue
     small = cv2.resize(full, (640, 360))

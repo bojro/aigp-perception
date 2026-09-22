@@ -9,10 +9,12 @@ training frame by a stretch of walking, so the score reflects generalisation.
 import csv, os, shutil, sys
 from collections import defaultdict
 from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from aigp_perception import paths as P
 
-SRC = Path("/Users/bojro/Downloads/gate frames")
+SRC = P.CAPTURE
 LAB = Path(os.environ.get("AIGP_LABELS",
-    "/Users/bojro/dev/ai-grand-prix/datasets/autolabel"))
+    os.path.expanduser("~/dev/ai-grand-prix/datasets/autolabel")))
 OUT = Path(sys.argv[1] if len(sys.argv) > 1 else "WORKDIR/ds_group")
 BLOCK = 40          # frames per block ~ 20 seconds of walking
 HOLD_EVERY = 5      # every 5th block becomes validation
