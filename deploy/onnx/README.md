@@ -33,8 +33,9 @@ hole in the model rather than a threshold to lower. The likely cause is ours —
 the geometric labeller is weakest on close gates, so they were thin in the
 fine-tuning set.
 
-`ms p95` is the catch. `fallback` pays a second inference on the 15% of frames
-where the primary saw nothing, and on CPU that lands at 41 ms against a 33 ms
+`ms p95` is the catch. `fallback` pays a second inference on the frames where
+the primary saw nothing -- 15% by this table's count, about 18% by the tally in
+`dual_detector.py`'s docstring, which was taken at a different box threshold -- and on CPU that lands at 41 ms against a 33 ms
 budget. On the Orin with TensorRT FP16 it should be far cheaper, but that is a
 guess until someone measures it. **Run `verify.py` on the Orin before trusting
 the fallback mode**; if it does not fit, `primary_only` still beats either
@@ -72,6 +73,10 @@ here prefers the PnP centre and falls back to the average.
   a pose. Non-zero exit if something would bite in flight.
 
 ## Running it
+
+Flight thresholds are box confidence 0.4 and keypoint confidence 0.25
+(`gate_detector.py`); every labelling and evaluation tool defaults to 0.25 for
+both, which is why their detection counts run higher.
 
     python deploy/onnx/verify.py --model models/gate_pose_hand497.onnx \
         --frames "~/gate frames" --limit 200

@@ -8,6 +8,8 @@ dependencies = ["opencv-python>=4.8", "numpy>=1.24"]
 [project.optional-dependencies]
 # Only the hybrid labeller and the training experiments need a detector.
 detector = ["ultralytics>=8.4", "torch", "torchvision"]
+# deploy/onnx and the dataset builder.
+deploy = ["onnxruntime", "pillow"]
 
 [project.scripts]
 aigp-autolabel = "aigp_perception.autolabel_gate_pose:main"

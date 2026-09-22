@@ -7,8 +7,10 @@ nothing else, which is the only reason B is worth the GPU time.
 
 On those 340 frames the human labels REPLACE ours rather than joining them.
 Scored against the humans our labeller matched 427 of their 737 gates and
-proposed another 195 badly placed; keeping both sets would feed the model those
-195 alongside the truth. Our labels are used only where no human looked.
+proposed another 195 badly placed (the commit that measured it counted our
+claims as 595, i.e. 168 unmatched; the 195 here also counts proposals on
+frames where we claimed a gate the humans did not); keeping both sets would
+feed the model those alongside the truth. Our labels are used only where no human looked.
 
 Two traps, both of which fail silently:
 

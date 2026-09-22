@@ -4,6 +4,11 @@ The output of this repo's pipeline, kept here so the model and the code that
 made it sit together. The flight repo carries the same files under its own
 `models/`; this is the copy with the recipe beside it.
 
+**Current model: `gate_pose_hand497`.** It is the successor to `hand434` and the
+one that measured better at a real gate (below). `hand434` is kept because it
+is the model with the held-out sibling result, and because `hand497` is a
+strict superset of its labels.
+
 ## `gate_pose_hand434`
 
 | | |
@@ -53,6 +58,10 @@ not generalisation, and must not be quoted as a result. Nothing here has flown:
 all training data is a person walking around a gate, and the only capture from
 the aircraft is 60 frames containing no gate at all.
 
+On those 340 frames the humans found 737 gates; we had claimed 595 and
+matched 427 of theirs, so the human labels replace ours wherever a human
+looked (`datasets/build_ab_datasets.py`).
+
 Corner accuracy claimed before the human labels arrived (0.75 px) was
 self-scored -- measured against the gate's own geometric model, which is the
 thing the labeller solves for, so a systematic error fits perfectly. Against
@@ -62,8 +71,32 @@ top. Sub-pixel is not a claim we can make.
 
 ## `gate_pose_hand497`
 
-Successor to `gate_pose_hand434`, trained 2026-09-21. **Not yet judged** -- it
-has neither a held-out number nor a live look, so nothing here is a result.
+Successor to `gate_pose_hand434`. The files are dated 2026-09-20 18:28 (the
+end of the training run on the pod); they were tracked here on 2026-09-21,
+after the live comparison below. It has **no held-out number** -- like
+`hand434` it trained on every frame we had -- so the only evidence for it is
+that comparison, not a validation score.
+
+### Measured at a real gate, 2026-09-21
+
+1345 live frames from the aircraft's own camera, both models scored on every
+frame at keypoint confidence 0.25 and box confidence 0.4:
+
+| | hand434 | hand497 |
+|---|---|---|
+| gate detected | 100% | 100% |
+| corner flicker between frames | 6.0% | **4.2%** |
+| separate usable runs (fragmentation) | 78 | **37** |
+| longest unbroken run | 142 frames | **178** |
+| hover policy ready (four corners, six consecutive frames) | 56% | **59%** |
+
+hand497 flickers 30% less and breaks into half as many fragments: fewer,
+longer usable stretches, which is what a runner that clears its history on a
+bad frame needs. One caveat: at the lowered thresholds it showed *more*
+multi-gate frames up close (34% against 28%), most likely the 0.25 box
+confidence used for viewing rather than the model, since the original
+duplicate finding was taken at 0.4. Detection rate did not separate them;
+corner stability did.
 
 | | |
 |---|---|
