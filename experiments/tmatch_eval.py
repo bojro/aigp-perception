@@ -1,4 +1,5 @@
 """Does appearance matching separate good labels from bad? Test before trusting."""
+from pathlib import Path
 import glob, sys
 from collections import defaultdict
 import cv2, numpy as np

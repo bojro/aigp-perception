@@ -5,7 +5,8 @@ its EDGES are still visible. Fit a line to each edge and intersect them and the
 corners come back - including the ones outside the frame.
 """
 import sys
-from pathlib import Path, math
+from pathlib import Path
+import math
 import cv2, numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from aigp_perception.autolabel_gate_pose import AutolabelConfig, orange_mask, order_corners

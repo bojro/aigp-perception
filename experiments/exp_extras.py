@@ -6,6 +6,7 @@ seed it and recover labels - or they are false positives, in which case the
 geometry can filter them. The same test settles both, and it is the test the
 runtime would use anyway.
 """
+from pathlib import Path
 import glob, sys, warnings
 warnings.filterwarnings("ignore")
 import cv2, numpy as np

@@ -1,6 +1,7 @@
 """Where do gates fall out? Count every stage on the same frames."""
 import sys
-from pathlib import Path, glob
+from pathlib import Path
+import glob
 from collections import Counter
 import cv2, numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))

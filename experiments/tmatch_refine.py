@@ -11,6 +11,7 @@ SUPPORT - which knows nothing about the template - decides whether the result
 actually improved. Scoring the refinement with the objective it optimised would
 prove nothing.
 """
+from pathlib import Path
 import glob, sys, time
 import cv2, numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))

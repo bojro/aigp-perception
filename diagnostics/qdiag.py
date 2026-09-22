@@ -1,5 +1,6 @@
 import sys
-from pathlib import Path, os
+from pathlib import Path
+import os
 import cv2, numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import aigp_perception.autolabel_gate_pose as A

@@ -1,4 +1,5 @@
 """Does edge support separate good labels from bad ones? If not, it is useless."""
+from pathlib import Path
 import glob, sys
 import cv2, numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))

@@ -4,6 +4,7 @@ Labelling can afford to be thorough; flight cannot. The question is how much
 of the 5x precision gain survives when the work is cut down to what fits
 between the detector and the 33 ms frame.
 """
+from pathlib import Path
 import glob, sys, time, warnings
 warnings.filterwarnings("ignore")
 import cv2, numpy as np

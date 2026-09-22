@@ -1,6 +1,7 @@
 """Render a named subset of instances, one frame per image, for inspection.
 Usage: subset.py <out_dir> <predicate> [stride]
 """
+from pathlib import Path
 import glob, os, sys
 import cv2, numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))

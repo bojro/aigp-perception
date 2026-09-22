@@ -1,6 +1,7 @@
 """What drives the p90 tail? Suspect: the gate's 260mm depth under oblique views."""
 import sys
-from pathlib import Path, glob
+from pathlib import Path
+import glob
 import cv2, numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import aigp_perception.autolabel_gate_pose as A

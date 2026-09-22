@@ -5,7 +5,8 @@ Reports the instance count alongside, because a variant can always look
 accurate by quietly dropping every hard gate.
 """
 import sys
-from pathlib import Path, glob, importlib, dataclasses
+from pathlib import Path
+import glob, importlib, dataclasses
 import cv2, numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import aigp_perception.autolabel_gate_pose as A

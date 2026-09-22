@@ -7,7 +7,8 @@ drop those and the survivors are real gate sides. Fit each, intersect
 consecutive pairs, and corners outside the image come back too.
 """
 import sys
-from pathlib import Path, math
+from pathlib import Path
+import math
 import cv2, numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from aigp_perception.autolabel_gate_pose import AutolabelConfig, orange_mask, order_corners

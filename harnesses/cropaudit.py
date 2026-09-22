@@ -4,6 +4,7 @@ Contact sheets shrink a 1920x1080 frame to a few hundred pixels, which hides
 exactly the few-pixel errors worth auditing. This cuts a window around each
 instance at 1:1 (upscaling small gates) so a reviewer sees real pixels.
 """
+from pathlib import Path
 import glob, os, sys
 import cv2, numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))

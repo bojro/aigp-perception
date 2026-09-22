@@ -6,7 +6,8 @@ at 30 Hz. This counts the real arithmetic and times a batched version, so the
 decision rests on the work rather than on the prototype's overhead.
 """
 import sys
-from pathlib import Path, time, warnings
+from pathlib import Path
+import time, warnings
 warnings.filterwarnings("ignore")
 import cv2, numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
