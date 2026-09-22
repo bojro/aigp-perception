@@ -72,7 +72,7 @@ def main() -> int:
     args = ap.parse_args()
 
     from ultralytics import YOLO
-    from deploy.gate_pose import solve_gate_pose
+    from deploy.onnx.gate_pose import solve_gate_pose
 
     hand = set(json.loads(args.hand_stems.read_text()))
     truth = {k: v for k, v in load_labels(args.truth).items() if k in hand}

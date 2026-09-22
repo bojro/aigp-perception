@@ -23,13 +23,13 @@ the same way a wrong `flip_idx` inverts left/right, and nothing reports it.
 
     # 1. two datasets differing only in whose labels the hand frames carry
     AIGP_COCO=<roboflow coco export dir> AIGP_BUNDLE=bundle \
-        python harnesses/build_ab_datasets.py
+        python datasets/build_ab_datasets.py
 
     # 2. A/B, to measure what the human labels bought
-    python experiments/train_ab.py A_merged B_auto
+    python train/train_ab.py A_merged B_auto
 
     # 3. judge against human labels and PnP, not mAP
-    python harnesses/eval_gate_pnp.py --weights <best.pt ...> \
+    python eval/eval_gate_pnp.py --weights <best.pt ...> \
         --images <val images> --truth <val labels> --hand-stems <stems.json>
 
 ## What is and is not established
@@ -88,7 +88,7 @@ Three things had to be fixed before the data could be trained on at all, each
 of which failed silently:
 
 * Roboflow splits three ways and the builder read only `train/`, which would
-  have discarded 115 of the 497 human labels. `harnesses/merge_coco_splits.py`
+  have discarded 115 of the 497 human labels. `datasets/merge_coco_splits.py`
   merges them, reassigning ids -- Roboflow numbers them from zero *inside each
   split*, so appending the lists makes `valid/` annotations point at `train/`
   images without erroring.
@@ -100,12 +100,12 @@ of which failed silently:
 
 ### Reproducing it
 
-    python harnesses/merge_coco_splits.py <roboflow export> -o merged.coco.json
+    python datasets/merge_coco_splits.py <roboflow export> -o merged.coco.json
     AIGP_SPLIT=all AIGP_CAPTURE=<frames> AIGP_COCO=merged.coco.json \
-        AIGP_BUNDLE=bundle python harnesses/build_ab_datasets.py
+        AIGP_BUNDLE=bundle python datasets/build_ab_datasets.py
     AIGP_DATA=<bundle>/A_merged AIGP_TAG=HAND497 \
         AIGP_SCALE=0.85 AIGP_TRANSLATE=0.35 AIGP_CLOSE_MOSAIC=15 \
-        python experiments/train_final.py
+        python train/train_final.py
 
 `train_final.py`'s defaults are unchanged, so `hand434` remains reproducible
 from the same file.

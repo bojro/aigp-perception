@@ -15,7 +15,7 @@ the questions that have actually gone wrong before:
 Exit status is non-zero if something would bite in flight, so this is usable
 as a gate in a script.
 
-    python deploy/verify.py --model models/gate_pose_hybrid_v1.onnx \
+    python deploy/onnx/verify.py --model models/gate_pose_hand497.onnx \
         --frames "~/gate frames" --limit 120 --budget-ms 33
 """
 

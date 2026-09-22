@@ -12,7 +12,7 @@ ratio (spec 3.7), so one homography fitted to the outer quad predicts where the
 opening must land. Candidates whose opening misses that prediction are not
 gates. That residual, normalised by gate size, is also the review score.
 
-    python tools/autolabel_gate_pose.py "~/Downloads/gate frames" --out datasets/autolabel
+    aigp-autolabel "~/Downloads/gate frames" --out work/autolabel
 
 Close gates break that topology: the outer square runs off the frame, and often
 the opening does too. So the ring is only an *anchor*. Whichever ring is cleanly
@@ -1887,7 +1887,7 @@ def draw_overlay(image: np.ndarray, instances: list[GateInstance]) -> np.ndarray
     return canvas
 
 
-DATA_YAML = f"""# Written by tools/autolabel_gate_pose.py.
+DATA_YAML = f"""# Written by aigp-autolabel (aigp_perception/autolabel_gate_pose.py).
 # Dataset-local paths, class name 'gate', and a real flip_idx - the three
 # things a Roboflow export usually gets wrong (models/README.md).
 train: train/images

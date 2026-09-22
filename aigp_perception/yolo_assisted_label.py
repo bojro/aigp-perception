@@ -16,7 +16,7 @@ Note the detector's own confidence does not predict which proposals survive
 (0.53 for kept versus 0.56 for discarded). The geometry is not re-scoring what
 the network already knew; it is supplying information the network does not have.
 
-    python tools/yolo_assisted_label.py "~/Downloads/gate frames" \
+    aigp-hybrid-label "~/Downloads/gate frames" \
         --model ~/Downloads/best.pt --out datasets/hybrid
 """
 

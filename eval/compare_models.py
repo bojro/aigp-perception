@@ -8,7 +8,7 @@ image per frame so the difference can be judged by eye.
 The provider actually in use is printed, because a silent fall back to CPU
 makes the timings meaningless.
 
-    python cli/compare_models.py --a models/gate_pose_teammate.onnx \
+    python eval/compare_models.py --a models/gate_pose_teammate.onnx \
         --b models/gate_pose_hybrid_v1.onnx --frames "~/gate frames" --limit 60
 """
 

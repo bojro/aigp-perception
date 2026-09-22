@@ -15,7 +15,7 @@ not error, it just attaches the wrong boxes to the wrong pictures. Ids are
 therefore reassigned, and category ids are remapped by *name* rather than
 trusted to agree across splits.
 
-    python harnesses/merge_coco_splits.py <export-dir> -o merged.coco.json
+    python datasets/merge_coco_splits.py <export-dir> -o merged.coco.json
 """
 from __future__ import annotations
 

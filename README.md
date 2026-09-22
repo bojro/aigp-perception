@@ -90,7 +90,12 @@ what is established about it and what is not.
 
     aigp_perception/     the engine - autolabeller, hybrid labeller
     models/              trained weights, ONNX for the Orin
-    harnesses/           validation: ground truth, A/B bench, label validator, galleries
+    datasets/            Roboflow merge, A/B dataset builder, label validator, renderer
+    train/               the two training scripts (pod)
+    eval/                held-out evaluation, model A/B, galleries
+    deploy/onnx/         the onnxruntime detector, PnP, dual detector, verify
+    deploy/orin/         torch harnesses that ran on the aircraft's computer
+    harnesses/           labeller A/B bench and audit crops
     experiments/         the experiments behind the numbers above, results in docstrings
     diagnostics/         one-off scripts used to find specific failures
 

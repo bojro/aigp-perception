@@ -56,7 +56,8 @@ on the **25W** profile, not MAXN, so there is headroom nobody has taken yet.
   watch. That was a real bug here and this is the fix.
 - `capture.py` — grab N stills once, so an offline comparison judges both
   models on identical pictures.
-- `bench.py` — the latency table above.
+- `bench_torch.py` — the latency table above. Torch, through the teammate's
+  `inference.py`; no onnxruntime number exists for the Orin.
 
 All three read only the camera. None opens MSP, touches `/dev/ttyTHS1`, or
 sends anything to the flight controller.
