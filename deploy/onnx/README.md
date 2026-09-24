@@ -33,7 +33,7 @@ hole in the model rather than a threshold to lower. The likely cause is ours:
 the geometric labeller is weakest on close gates, so they were thin in the
 fine-tuning set.
 
-`ms p95` is the catch. `fallback` pays a second inference on the frames where
+`ms p95` is the constraint. `fallback` pays a second inference on the frames where
 the primary saw nothing -- 15% by this table's count, about 18% by the tally in
 `dual_detector.py`'s docstring, which was taken at a different box threshold -- and on CPU that lands at 41 ms against a 33 ms
 budget. On the Orin with TensorRT FP16 it should be far cheaper, but that is a
@@ -41,7 +41,7 @@ guess until someone measures it. **Run `verify.py` on the Orin before trusting
 the fallback mode**; if it does not fit, `primary_only` still beats either
 model alone on posed-frame rate.
 
-## Two fixes worth more than the model choice
+## Two fixes with a larger effect than the model choice
 
 **1. `REPROJ_ERR_MAX_PX = 2.0` is too tight** (`vision/yolo_pnp.py:125`). It was
 right for the simulator's exact corners. On real frames it rejects 74% of the

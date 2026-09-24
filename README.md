@@ -8,7 +8,7 @@ The whole project is written up in [the paper](https://github.com/bojro/aigp-sim
 
 *The same walk around a gate, shown twice. Left: the corner labels the hybrid pipeline in this repo wrote for each frame, which is what the model was trained on. Right: `gate_pose_hand497.onnx`, the shipped model, run on the raw frame through the same detector class the flight code uses; corners below the 0.25 keypoint threshold are left out, so what is drawn is what the aircraft would get. Cyan is the outer ring, yellow the opening, numbers are the corner ids, and an edge is drawn only between two corners that were seen. Frames from the aircraft's own camera, 19 September.*
 
-## Results at a glance
+## Results
 
 | | |
 |---|---|
@@ -19,15 +19,15 @@ The whole project is written up in [the paper](https://github.com/bojro/aigp-sim
 | Latency on the Orin | **27.4 ms** per model at 640×360 on the GPU; one model fits the 33 ms budget, two do not |
 | Labeller accuracy | **4.36 px** median against human labels. The 0.75 px it scored itself was measured against the model it solves for |
 
-The last row is the one to remember. Every accuracy figure in this repo before the human labels arrived was self-scored, and every mAP before the contiguous-block split (0.517 random vs 0.283 blocks, same model) was optimistic. Both are documented rather than hidden.
+The last row matters most: every accuracy figure in this repo before the human labels arrived was self-scored, and every mAP before the contiguous-block split (0.517 random vs 0.283 blocks, same model) was optimistic. Both are recorded as such.
 
 ![The four hard cases, each as its training label (left) and hand497's detection (right)](docs/hard_cases_labels_vs_hand497.jpg)
 
-*The cases the pipeline is judged on, each shown as the training label on the left and the shipped model's detection on the right. Row 1, a far gate: the label pipeline found the small gate in the distance and gave up on the near one running off the frame; the model still places three corners on the near one. Row 2, a gate cut by the frame: six labelled corners, and the model picks up one edge of the opening. Row 3, five gates at once: both sides put eight ordered corners on each. Row 4, an oblique view: the planar rings still land. Where the two columns differ is exactly where the detector adds to, or falls short of, the geometry.*
+*Four difficult cases, each shown as the training label on the left and the shipped model's detection on the right. Row 1, a far gate: the label pipeline found the small gate in the distance and gave up on the near one running off the frame; the model still places three corners on the near one. Row 2, a gate cut by the frame: six labelled corners, and the model picks up one edge of the opening. Row 3, five gates at once: both sides put eight ordered corners on each. Row 4, an oblique view: the planar rings still land. Where the two columns differ is exactly where the detector adds to, or falls short of, the geometry.*
 
-## What is original here
+## Method
 
-Fine-tuning a YOLO pose model is routine. Two things are not:
+Fine-tuning a YOLO pose model is standard. Two parts of the pipeline are specific to this task:
 
 * **Labelling by measurement rather than recognition.** A gate is an orange ring, so its colour mask has a hole; in the contour hierarchy the parent is the outer square and the child is the opening. Ring identity comes from topology, which sidesteps the problem that defeats vision-language models on this task: telling eight similar corners apart. From there it is line fitting, corner intersection (corners past the frame edge included), sub-pixel edge refinement and one homography over all eight points.
 * **Detector proposes, geometry disposes.** The detector finds gates the geometry cannot trace; the geometry refines each proposal to the image's edges and applies its own per-corner checks. That doubled the yield at the same accuracy, and the detector's confidence could not have done it: recovered proposals scored 0.53, rejected ones 0.56.
@@ -45,10 +45,10 @@ Square annulus, front face planar: outer boundary 2700 mm, flyable opening 1500 
 
 Same convention as the flight repo's `models/README.md` and the team's Roboflow exports, so labels interchange without translation.
 
-## Start here
+## Further documentation
 
 1. [`models/README.md`](models/README.md): the two shipped models, exactly how each was trained, and what is and is not established about them.
-2. [`deploy/README.md`](deploy/README.md): which of the two deployment stacks actually ran on the aircraft, and the two fixes worth more than the model choice.
+2. [`deploy/README.md`](deploy/README.md): which of the two deployment stacks actually ran on the aircraft, and the two fixes with a larger effect than the model choice.
 3. [`research/README.md`](research/README.md): a table of every one-off experiment, the question it asked, the answer, and where that answer now lives in the engine.
 
 ## The pipeline, stage by stage
@@ -60,7 +60,7 @@ Same convention as the flight repo's `models/README.md` and the team's Roboflow 
 5. **Judge** against humans and PnP, not mAP: `python eval/eval_gate_pnp.py --weights <best.pt> --images <val> --truth <labels> --hand-stems <stems.json>`. `eval/compare_models.py` runs two ONNX models side by side.
 6. **Deploy**: `python deploy/onnx/verify.py --model models/gate_pose_hand497.onnx --frames <frames>` reports the execution provider, latency at 640×360 against a 33 ms budget, and how often a detection becomes a pose; non-zero exit if something would bite in flight. Flight thresholds: box confidence 0.4, keypoint confidence 0.25 (`deploy/onnx/gate_detector.py`).
 
-## What is not established
+## Limitations
 
 * **Nothing here has flown.** `deploy/onnx/` has never run on the aircraft; `deploy/orin/` ran, on the teammate's torch stack, with the camera at a bench and then at one gate.
 * **All training data is a person walking around a gate**, at 2 fps, not a drone flying one. The only in-flight capture contained no gate.
@@ -82,7 +82,7 @@ Same convention as the flight repo's `models/README.md` and the team's Roboflow 
 
 `aigp_perception/paths.py` reads `AIGP_CAPTURE`, `AIGP_TEAMMATE_PT` and `AIGP_WORK`; the 1207-frame capture and `work/` are not in the repo. `eval/gallery.py` shells out to ImageMagick's `montage`. Install with `pip install -e .[detector,deploy]` for ultralytics/torch and onnxruntime/pillow respectively.
 
-## Two traps worth knowing
+## Label-format pitfalls
 
 **Off-frame keypoints.** A keypoint outside the frame normalises outside [0,1], and Ultralytics rejects the label as corrupt, silently discarding the *entire image*, not the one point. Write them `v=0`; their estimated positions stay in `report.csv` for PnP.
 
