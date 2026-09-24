@@ -47,9 +47,11 @@ def gates(stem):
     return out
 
 def draw(im, gs, scale=1.0):
+    """Draw at the image's own size: lw/r/font scale with width so overlays stay legible after resizing."""
     W, H = im.size; d = ImageDraw.Draw(im)
-    lw = max(2, int(5 * scale)); r = max(4, int(9 * scale))
-    try: font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", int(22 * scale))
+    k = W / 1920 * scale
+    lw = max(2, round(7 * k)); r = max(3, round(11 * k))
+    try: font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", max(9, round(26 * k)))
     except OSError: font = ImageFont.load_default()
     for box, kps in gs:
         pts = [(x * W, y * H, vis) for x, y, vis in kps]
@@ -67,10 +69,26 @@ def draw(im, gs, scale=1.0):
 
 def frame(stem, width):
     im = Image.open(os.path.join(CAPTURE, stem + ".jpg")).convert("RGB")
-    im = draw(im, gates(stem))
-    return im.resize((width, int(im.height * width / im.width)), Image.LANCZOS)
+    im = im.resize((width, int(im.height * width / im.width)), Image.LANCZOS)
+    return draw(im, gates(stem))
 
-def side_by_side_gif(start="0919_214639_000000", n=50, step=2, width=460, fps=5, weights=None):
+def best_window(n=40, step=1):
+    """The n-frame window that is an approach: the largest gate with six or more corners in view grows the most."""
+    best, best_score = None, -1
+    for prefix in ("0919_214639", "0919_220524"):
+        hs = {}
+        for p in glob.glob(os.path.join(LABELS, "*", "labels", prefix + "_*.txt")):
+            st = os.path.splitext(os.path.basename(p))[0]; gs = gates(st)
+            ok = [g for g in gs if sum(v for _, _, v in g[1]) >= 6]
+            hs[int(st[-6:])] = max((g[0][3] for g in ok), default=0.0)
+        for a in sorted(hs):
+            win = [hs.get(a + k * step, 0.0) for k in range(n)]
+            if min(win) <= 0.10: continue
+            sc = win[-1] - win[0]
+            if sc > best_score: best, best_score = f"{prefix}_{a:06d}", sc
+    return best, best_score
+
+def side_by_side_gif(start=None, n=40, step=1, width=480, fps=5, weights=None):
     """Left: the hybrid training labels. Right: gate_pose_hand497.onnx on the raw frame, through the flight-facing detector class."""
     import cv2
     sys.path.insert(0, os.path.join(os.path.dirname(OUT), "deploy", "onnx"))
@@ -78,21 +96,24 @@ def side_by_side_gif(start="0919_214639_000000", n=50, step=2, width=460, fps=5,
     det = GateDetector(weights or os.path.join(os.path.dirname(OUT), "models", "gate_pose_hand497.onnx"), conf=0.4, kpt_conf=0.25, provider="cpu")
     try: font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 15)
     except OSError: font = ImageFont.load_default()
-    stems = [f"0919_214639_{int(start[-6:]) + k * step:06d}" for k in range(n)]
+    if start is None:
+        start, score = best_window(n=n, step=step); print("window", start, "gate growth", round(score, 2))
+    stems = [f"{start[:-6]}{int(start[-6:]) + k * step:06d}" for k in range(n)]
     frames, n_gates, n_full = [], 0, 0
     for st in stems:
         path = os.path.join(CAPTURE, st + ".jpg")
         if not os.path.exists(path) or not label_path(st): continue
         bgr = cv2.imread(path); H, W = bgr.shape[:2]
-        left = draw(Image.fromarray(bgr[..., ::-1].copy()), gates(st))
+        h = int(H * width / W); gap, strip = 6, 22
+        small = Image.fromarray(bgr[..., ::-1].copy()).resize((width, h), Image.LANCZOS)
+        left = draw(small.copy(), gates(st))
         gs = []
         for g in det.detect(cv2.resize(bgr, (640, 360))):
-            gs.append(((0, 0, 0, 0), [(x * (W / 640) / W, y * (H / 360) / H, bool(v)) for (x, y), v in zip(g.keypoints, g.kpt_visible)]))
+            gs.append(((0, 0, 0, 0), [(x / 640, y / 360, bool(v)) for (x, y), v in zip(g.keypoints, g.kpt_visible)]))
             n_gates += 1; n_full += int(g.kpt_visible.sum() == 8)
-        right = draw(Image.fromarray(bgr[..., ::-1].copy()), gs)
-        h = int(H * width / W); gap, strip = 6, 22
+        right = draw(small.copy(), gs)
         sheet = Image.new("RGB", (2 * width + gap, h + strip), (13, 17, 23))
-        sheet.paste(left.resize((width, h), Image.LANCZOS), (0, strip)); sheet.paste(right.resize((width, h), Image.LANCZOS), (width + gap, strip))
+        sheet.paste(left, (0, strip)); sheet.paste(right, (width + gap, strip))
         d = ImageDraw.Draw(sheet)
         d.text((6, 4), "training labels (hybrid pipeline)", fill=(220, 220, 220), font=font)
         d.text((width + gap + 6, 4), "gate_pose_hand497.onnx detections", fill=(220, 220, 220), font=font)
@@ -101,8 +122,10 @@ def side_by_side_gif(start="0919_214639_000000", n=50, step=2, width=460, fps=5,
     frames[0].save(out, save_all=True, append_images=frames[1:], duration=int(1000 / fps), loop=0, optimize=True)
     print(out, len(frames), "frames", round(os.path.getsize(out) / 1e6, 1), "MB;", n_gates, "gates found by the model,", n_full, "with all 8 corners above 0.25")
 
-def pick_hard_cases():
-    """Choose by the labels themselves: far, cut off, crowded, oblique."""
+def pick_hard_cases(det=None):
+    """Choose by the labels themselves: far, cut off, crowded, oblique. The far case also asks the model to agree
+    that there is one small gate and nothing else, so an unlabelled near gate cannot dominate the frame."""
+    import cv2
     stems = [os.path.splitext(os.path.basename(p))[0] for p in glob.glob(os.path.join(LABELS, "*", "labels", "*.txt"))]
     stats = {}
     for st in stems:
@@ -111,7 +134,16 @@ def pick_hard_cases():
         big = max(gs, key=lambda g: g[0][2] * g[0][3])
         vis = sum(v for _, _, v in big[1])
         stats[st] = dict(n=len(gs), h=big[0][3], vis=vis, skew=abs(big[1][0][1] - big[1][1][1]) if big[1][0][2] and big[1][1][2] else 0)
-    far = min((st for st in stats if stats[st]["vis"] == 8 and stats[st]["h"] > 0.08), key=lambda st: stats[st]["h"])
+    far_cands = sorted((st for st in stats if stats[st]["vis"] == 8 and stats[st]["n"] <= 2 and 0.10 < stats[st]["h"] < 0.25), key=lambda st: stats[st]["h"])
+    far = far_cands[0]
+    if det is not None:
+        for st in far_cands:
+            gs = det.detect(cv2.resize(cv2.imread(os.path.join(CAPTURE, st + ".jpg")), (640, 360)))
+            # every detection small (nothing large and unlabelled in the frame), and at least one with all eight corners
+            if gs and all((g.box[3] - g.box[1]) / 360 < 0.3 for g in gs) and any(g.kpt_visible.sum() == 8 for g in gs):
+                far = st; break
+        else:
+            print("no far-gate frame passed the model check; using", far)
     cut = max((st for st in stats if 4 <= stats[st]["vis"] <= 6), key=lambda st: stats[st]["h"])
     crowd = max((st for st in stats if stats[st]["vis"] == 8), key=lambda st: (stats[st]["n"], stats[st]["h"]))
     oblique = max((st for st in stats if stats[st]["vis"] == 8 and stats[st]["h"] > 0.3), key=lambda st: stats[st]["skew"])
@@ -125,7 +157,7 @@ def hard_cases_pairs(pane=700, weights=None):
     det = GateDetector(weights or os.path.join(os.path.dirname(OUT), "models", "gate_pose_hand497.onnx"), conf=0.4, kpt_conf=0.25, provider="cpu")
     try: font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 17)
     except OSError: font = ImageFont.load_default()
-    picks = pick_hard_cases(); gap, strip = 6, 26
+    picks = pick_hard_cases(det); gap, strip = 6, 26
     h = int(pane * 9 / 16)
     sheet = Image.new("RGB", (2 * pane + gap, strip + 4 * (h + gap)), (13, 17, 23))
     d = ImageDraw.Draw(sheet)
@@ -133,9 +165,10 @@ def hard_cases_pairs(pane=700, weights=None):
     d.text((pane + gap + 6, 5), "gate_pose_hand497.onnx detection", fill=(220, 220, 220), font=font)
     for r, (st, tag) in enumerate(picks):
         bgr = cv2.imread(os.path.join(CAPTURE, st + ".jpg")); H, W = bgr.shape[:2]
-        left = draw(Image.fromarray(bgr[..., ::-1].copy()), gates(st)).resize((pane, h), Image.LANCZOS)
-        gs = [((0, 0, 0, 0), [(x * (W / 640) / W, y * (H / 360) / H, bool(v)) for (x, y), v in zip(g.keypoints, g.kpt_visible)]) for g in det.detect(cv2.resize(bgr, (640, 360)))]
-        right = draw(Image.fromarray(bgr[..., ::-1].copy()), gs).resize((pane, h), Image.LANCZOS)
+        small = Image.fromarray(bgr[..., ::-1].copy()).resize((pane, int(H * pane / W)), Image.LANCZOS)
+        left = draw(small.copy(), gates(st))
+        gs = [((0, 0, 0, 0), [(x / 640, y / 360, bool(v)) for (x, y), v in zip(g.keypoints, g.kpt_visible)]) for g in det.detect(cv2.resize(bgr, (640, 360)))]
+        right = draw(small.copy(), gs)
         y = strip + r * (h + gap)
         sheet.paste(left, (0, y)); sheet.paste(right, (pane + gap, y))
         ImageDraw.Draw(sheet).text((8, y + 6), tag, fill="white", font=font, stroke_width=2, stroke_fill=(20, 20, 20))

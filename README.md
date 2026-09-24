@@ -6,7 +6,7 @@ The whole project is written up in [the paper](https://github.com/bojro/aigp-sim
 
 ![Same frames, twice: the training labels the pipeline wrote on the left, the shipped model's detections on the right](docs/walkaround_labels_vs_hand497.gif)
 
-*The same walk around a gate, shown twice. Left: the corner labels the hybrid pipeline in this repo wrote for each frame, which is what the model was trained on. Right: `gate_pose_hand497.onnx`, the shipped model, run on the raw frame through the same detector class the flight code uses; corners below the 0.25 keypoint threshold are left out, so what is drawn is what the aircraft would get. Cyan is the outer ring, yellow the opening, numbers are the corner ids, and an edge is drawn only between two corners that were seen. Frames from the aircraft's own camera, 19 September.*
+*Forty frames of a walk through the hall, shown twice. Left: the corner labels the hybrid pipeline in this repo wrote for each frame, which is what the model was trained on. Right: `gate_pose_hand497.onnx`, the shipped model, run on the raw frame through the same detector class the flight code uses; corners below the 0.25 keypoint threshold are left out, so what is drawn is what the aircraft would get. Cyan is the outer ring, yellow the opening, numbers are the corner ids, and an edge is drawn only between two corners that were seen. Frames from the aircraft's own camera, 19 September.*
 
 ## Results
 
@@ -23,7 +23,7 @@ The last row matters most: every accuracy figure in this repo before the human l
 
 ![The four hard cases, each as its training label (left) and hand497's detection (right)](docs/hard_cases_labels_vs_hand497.jpg)
 
-*Four difficult cases, each shown as the training label on the left and the shipped model's detection on the right. Row 1, a far gate: the label pipeline found the small gate in the distance and gave up on the near one running off the frame; the model still places three corners on the near one. Row 2, a gate cut by the frame: six labelled corners, and the model picks up one edge of the opening. Row 3, five gates at once: both sides put eight ordered corners on each. Row 4, an oblique view: the planar rings still land. Where the two columns differ is exactly where the detector adds to, or falls short of, the geometry.*
+*Four difficult cases, each shown as the training label on the left and the shipped model's detection on the right. Row 1, far gates: the label pipeline traced one of the two; the model finds both. Row 2, a gate cut by the frame: six labelled corners, and the model places one edge of the opening. Row 3, five gates at once: both sides put eight ordered corners on each. Row 4, an oblique view: the planar rings still land. Where the two columns differ is where the detector adds to, or falls short of, the geometry it learned from.*
 
 ## Method
 
