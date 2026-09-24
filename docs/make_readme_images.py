@@ -6,8 +6,6 @@ Each one carries one message:
                           through the hall that ends close on a gate (the window is chosen by the
                           labels: the gate that grows the most); corners below the 0.25 keypoint
                           threshold left out, so what is drawn is what the flight code gets
-  hand497_orbit.gif       the same model on the first hundred frames of the first session, the camera
-                          circling one gate
   hand497_sway.gif        the same model holding one gate at mid range while the camera sways side to
                           side (frames 29-79 of the first session), the corners staying put
   hard_cases_labels_vs_hand497.jpg
@@ -177,4 +175,4 @@ def hard_cases_pairs(det, pane=700):
 
 if __name__ == "__main__":
     det = _detector()
-    approach_gif(det); orbit_gif(det); sway_gif(det); hard_cases_pairs(det)
+    approach_gif(det); sway_gif(det); hard_cases_pairs(det)

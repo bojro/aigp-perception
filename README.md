@@ -4,17 +4,13 @@
 
 The whole project is written up in [the paper](https://github.com/bojro/aigp-sim/blob/main/paper/paper.md) in the sibling `aigp-sim` repository; Section 4 is this repo.
 
-![The shipped model as the camera circles a gate](docs/hand497_orbit.gif)
-
-*The camera circling one gate through the first hundred frames of the walk-around: the eight corners keep their ids as the view swings around the gate, which is what a pose solve needs.*
-
 ![The shipped model holding one gate while the camera sways](docs/hand497_sway.gif)
 
-*The same model holding one gate at mid range while the camera sways: the corners stay on the gate, and the far gate behind it is picked up as well. Frames 29 to 79 of the first walk-around.*
+*`gate_pose_hand497.onnx`, the model this repo ships, holding one gate at mid range while the camera sways: the corners stay on the gate and keep their ids, and the far gate behind it is picked up as well. Raw frames from the aircraft's own camera, run through the same detector class the flight code uses; corners below the 0.25 keypoint threshold are left out, so what is drawn is what the aircraft would get. Cyan is the outer ring, yellow the opening.*
 
-![The shipped model on the aircraft's own camera, walking through the hall toward a gate](docs/hand497_approach.gif)
+![The shipped model as the camera moves around a gate and closes on it](docs/hand497_approach.gif)
 
-*`gate_pose_hand497.onnx`, the model this repo ships, on forty raw frames from the aircraft's camera as it walks through the hall and closes on a gate, run through the same detector class the flight code uses. Cyan is the outer ring, yellow the opening, numbers are the corner ids; corners below the 0.25 keypoint threshold are left out, so what is drawn is what the aircraft would get.*
+*The same model as the camera swings around a gate and closes on it: the eight corners keep their ids through the turn, which is what a pose solve needs, and the gates behind are picked up on the way.*
 
 ## Results
 
