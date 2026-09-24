@@ -2,18 +2,24 @@
 
 Each one carries one message:
 
-  labels_walkaround.gif   the labeller returns the same eight ordered corners on every frame as the
-                          camera moves around the gate; an edge is drawn only between corners that
-                          were actually seen
-  labels_hard_cases.jpg   four frames the pipeline is judged on: a far gate, a close gate with
-                          corners off the frame, two gates at once, an oblique view
+  walkaround_labels_vs_hand497.gif
+                          the same frames of a walk around the gate, twice: left, the hybrid TRAINING
+                          labels the pipeline wrote (what the model learned from); right, the shipped
+                          model gate_pose_hand497.onnx run on the raw frame (what the flight code
+                          gets), corners below the 0.25 keypoint threshold left out
+  hard_cases_labels_vs_hand497.jpg
+                          four frames the pipeline is judged on (a far gate, a close gate with corners
+                          off the frame, several gates at once, an oblique view), each shown twice:
+                          the training label on the left, hand497's detection on the right
 
-Needs the 1207-frame capture (AIGP_CAPTURE, default ~/Downloads/gate frames) and the hybrid
-dataset's YOLO-pose labels (AIGP_LABELS, default the flight repo's datasets/hybrid). Pillow only.
+Needs the 1207-frame capture (AIGP_CAPTURE, default ~/Downloads/gate frames), the hybrid
+dataset's YOLO-pose labels (AIGP_LABELS, default the flight repo's datasets/hybrid), and a Python with
+Pillow, cv2 and onnxruntime (`pip install -e .[deploy]`).
 
     python3 docs/make_readme_images.py
 """
-import glob, os
+import glob, os, sys
+import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 CAPTURE = os.path.expanduser(os.environ.get("AIGP_CAPTURE", "~/Downloads/gate frames"))
@@ -64,37 +70,77 @@ def frame(stem, width):
     im = draw(im, gates(stem))
     return im.resize((width, int(im.height * width / im.width)), Image.LANCZOS)
 
-def walkaround_gif(start="0919_214639_000000", n=50, step=2, width=600, fps=5):
+def side_by_side_gif(start="0919_214639_000000", n=50, step=2, width=460, fps=5, weights=None):
+    """Left: the hybrid training labels. Right: gate_pose_hand497.onnx on the raw frame, through the flight-facing detector class."""
+    import cv2
+    sys.path.insert(0, os.path.join(os.path.dirname(OUT), "deploy", "onnx"))
+    from gate_detector import GateDetector
+    det = GateDetector(weights or os.path.join(os.path.dirname(OUT), "models", "gate_pose_hand497.onnx"), conf=0.4, kpt_conf=0.25, provider="cpu")
+    try: font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 15)
+    except OSError: font = ImageFont.load_default()
     stems = [f"0919_214639_{int(start[-6:]) + k * step:06d}" for k in range(n)]
-    stems = [s for s in stems if label_path(s) and os.path.exists(os.path.join(CAPTURE, s + ".jpg"))]
-    frames = [frame(s, width).quantize(colors=96, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.FLOYDSTEINBERG) for s in stems]
-    out = os.path.join(OUT, "labels_walkaround.gif")
+    frames, n_gates, n_full = [], 0, 0
+    for st in stems:
+        path = os.path.join(CAPTURE, st + ".jpg")
+        if not os.path.exists(path) or not label_path(st): continue
+        bgr = cv2.imread(path); H, W = bgr.shape[:2]
+        left = draw(Image.fromarray(bgr[..., ::-1].copy()), gates(st))
+        gs = []
+        for g in det.detect(cv2.resize(bgr, (640, 360))):
+            gs.append(((0, 0, 0, 0), [(x * (W / 640) / W, y * (H / 360) / H, bool(v)) for (x, y), v in zip(g.keypoints, g.kpt_visible)]))
+            n_gates += 1; n_full += int(g.kpt_visible.sum() == 8)
+        right = draw(Image.fromarray(bgr[..., ::-1].copy()), gs)
+        h = int(H * width / W); gap, strip = 6, 22
+        sheet = Image.new("RGB", (2 * width + gap, h + strip), (13, 17, 23))
+        sheet.paste(left.resize((width, h), Image.LANCZOS), (0, strip)); sheet.paste(right.resize((width, h), Image.LANCZOS), (width + gap, strip))
+        d = ImageDraw.Draw(sheet)
+        d.text((6, 4), "training labels (hybrid pipeline)", fill=(220, 220, 220), font=font)
+        d.text((width + gap + 6, 4), "gate_pose_hand497.onnx detections", fill=(220, 220, 220), font=font)
+        frames.append(sheet.quantize(colors=96, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.FLOYDSTEINBERG))
+    out = os.path.join(OUT, "walkaround_labels_vs_hand497.gif")
     frames[0].save(out, save_all=True, append_images=frames[1:], duration=int(1000 / fps), loop=0, optimize=True)
-    print(out, len(frames), "frames", round(os.path.getsize(out) / 1e6, 1), "MB")
+    print(out, len(frames), "frames", round(os.path.getsize(out) / 1e6, 1), "MB;", n_gates, "gates found by the model,", n_full, "with all 8 corners above 0.25")
 
-def hard_cases(width=1600):
-    """Pick by the labels themselves: far, cut off, crowded, oblique."""
+def pick_hard_cases():
+    """Choose by the labels themselves: far, cut off, crowded, oblique."""
     stems = [os.path.splitext(os.path.basename(p))[0] for p in glob.glob(os.path.join(LABELS, "*", "labels", "*.txt"))]
     stats = {}
-    for s in stems:
-        gs = gates(s)
-        if not gs or not os.path.exists(os.path.join(CAPTURE, s + ".jpg")): continue
+    for st in stems:
+        gs = gates(st)
+        if not gs or not os.path.exists(os.path.join(CAPTURE, st + ".jpg")): continue
         big = max(gs, key=lambda g: g[0][2] * g[0][3])
         vis = sum(v for _, _, v in big[1])
-        stats[s] = dict(n=len(gs), h=big[0][3], vis=vis,
-                        skew=abs((big[1][0][1] - big[1][1][1])) if big[1][0][2] and big[1][1][2] else 0)
-    far = min((s for s in stats if stats[s]["vis"] == 8 and stats[s]["h"] > 0.08), key=lambda s: stats[s]["h"])
-    cut = max((s for s in stats if 4 <= stats[s]["vis"] <= 6), key=lambda s: stats[s]["h"])
-    crowd = max((s for s in stats if stats[s]["vis"] == 8), key=lambda s: (stats[s]["n"], stats[s]["h"]))
-    oblique = max((s for s in stats if stats[s]["vis"] == 8 and stats[s]["h"] > 0.3), key=lambda s: stats[s]["skew"])
-    picks = [(far, "far"), (cut, "cut off"), (crowd, "crowded"), (oblique, "oblique")]
-    w = width // 2; h = int(w * 9 / 16); gap = 6
-    sheet = Image.new("RGB", (2 * w + gap, 2 * h + gap), (13, 17, 23))
-    for i, (s, tag) in enumerate(picks):
-        im = frame(s, w); im = im.crop((0, 0, w, h))
-        sheet.paste(im, ((i % 2) * (w + gap), (i // 2) * (h + gap)))
-        print(tag, s, stats[s])
-    out = os.path.join(OUT, "labels_hard_cases.jpg"); sheet.save(out, quality=86); print(out)
+        stats[st] = dict(n=len(gs), h=big[0][3], vis=vis, skew=abs(big[1][0][1] - big[1][1][1]) if big[1][0][2] and big[1][1][2] else 0)
+    far = min((st for st in stats if stats[st]["vis"] == 8 and stats[st]["h"] > 0.08), key=lambda st: stats[st]["h"])
+    cut = max((st for st in stats if 4 <= stats[st]["vis"] <= 6), key=lambda st: stats[st]["h"])
+    crowd = max((st for st in stats if stats[st]["vis"] == 8), key=lambda st: (stats[st]["n"], stats[st]["h"]))
+    oblique = max((st for st in stats if stats[st]["vis"] == 8 and stats[st]["h"] > 0.3), key=lambda st: stats[st]["skew"])
+    return [(far, "far gate"), (cut, "cut by the frame"), (crowd, "several gates"), (oblique, "oblique")]
+
+def hard_cases_pairs(pane=700, weights=None):
+    """Rows: the four hard cases. Columns: the training label | hand497's detection on the raw frame."""
+    import cv2
+    sys.path.insert(0, os.path.join(os.path.dirname(OUT), "deploy", "onnx"))
+    from gate_detector import GateDetector
+    det = GateDetector(weights or os.path.join(os.path.dirname(OUT), "models", "gate_pose_hand497.onnx"), conf=0.4, kpt_conf=0.25, provider="cpu")
+    try: font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 17)
+    except OSError: font = ImageFont.load_default()
+    picks = pick_hard_cases(); gap, strip = 6, 26
+    h = int(pane * 9 / 16)
+    sheet = Image.new("RGB", (2 * pane + gap, strip + 4 * (h + gap)), (13, 17, 23))
+    d = ImageDraw.Draw(sheet)
+    d.text((6, 5), "training label (hybrid pipeline)", fill=(220, 220, 220), font=font)
+    d.text((pane + gap + 6, 5), "gate_pose_hand497.onnx detection", fill=(220, 220, 220), font=font)
+    for r, (st, tag) in enumerate(picks):
+        bgr = cv2.imread(os.path.join(CAPTURE, st + ".jpg")); H, W = bgr.shape[:2]
+        left = draw(Image.fromarray(bgr[..., ::-1].copy()), gates(st)).resize((pane, h), Image.LANCZOS)
+        gs = [((0, 0, 0, 0), [(x * (W / 640) / W, y * (H / 360) / H, bool(v)) for (x, y), v in zip(g.keypoints, g.kpt_visible)]) for g in det.detect(cv2.resize(bgr, (640, 360)))]
+        right = draw(Image.fromarray(bgr[..., ::-1].copy()), gs).resize((pane, h), Image.LANCZOS)
+        y = strip + r * (h + gap)
+        sheet.paste(left, (0, y)); sheet.paste(right, (pane + gap, y))
+        ImageDraw.Draw(sheet).text((8, y + 6), tag, fill="white", font=font, stroke_width=2, stroke_fill=(20, 20, 20))
+        print(tag, st, len(gs), "detections")
+    out = os.path.join(OUT, "hard_cases_labels_vs_hand497.jpg"); sheet.save(out, quality=86); print(out)
 
 if __name__ == "__main__":
-    walkaround_gif(); hard_cases()
+    side_by_side_gif(); hard_cases_pairs()

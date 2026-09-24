@@ -4,9 +4,9 @@
 
 The whole project is written up in [the paper](https://github.com/bojro/aigp-sim/blob/main/paper/paper.md) in the sibling `aigp-sim` repository; Section 4 is this repo.
 
-![The labeller's eight ordered corners on the aircraft's own camera as it moves around a gate](docs/labels_walkaround.gif)
+![Same frames, twice: the training labels the pipeline wrote on the left, the shipped model's detections on the right](docs/walkaround_labels_vs_hand497.gif)
 
-*What this repo produces. The corner positions are read straight from the label files the hybrid pipeline wrote for the walk-around capture (`datasets/hybrid/*/labels/*.txt`, YOLO-pose format) and rendered onto the raw frames from the aircraft's camera, 19 September: cyan for the outer ring, yellow for the opening, an edge only between two corners the labeller marked visible. On every frame, the same eight corners in the same order.*
+*The same walk around a gate, shown twice. Left: the corner labels the hybrid pipeline in this repo wrote for each frame, which is what the model was trained on. Right: `gate_pose_hand497.onnx`, the shipped model, run on the raw frame through the same detector class the flight code uses; corners below the 0.25 keypoint threshold are left out, so what is drawn is what the aircraft would get. Cyan is the outer ring, yellow the opening, numbers are the corner ids, and an edge is drawn only between two corners that were seen. Frames from the aircraft's own camera, 19 September.*
 
 ## Results at a glance
 
@@ -21,13 +21,9 @@ The whole project is written up in [the paper](https://github.com/bojro/aigp-sim
 
 The last row is the one to remember. Every accuracy figure in this repo before the human labels arrived was self-scored, and every mAP before the contiguous-block split (0.517 random vs 0.283 blocks, same model) was optimistic. Both are documented rather than hidden.
 
-![Four hard cases: a far gate, a gate cut by the frame, two gates at once, an oblique view](docs/labels_hard_cases.jpg)
+![The four hard cases, each as its training label (left) and hand497's detection (right)](docs/hard_cases_labels_vs_hand497.jpg)
 
-*The cases the pipeline is judged on, rendered the same way from the label files. Top left: the far gate is labelled while the near one, running off the frame, could not be traced by geometry alone and went to review, which is the gap the detector fills. Top right: a close gate with six of eight corners in view. Bottom left: five gates in one frame, each with its own ordered corners. Bottom right: an oblique view, where a planar homography still lands both rings.*
-
-![The hand-labelled model against the incumbent on the same frames](docs/detector_ab_gallery.jpg)
-
-*Why human labels mattered. Side by side on the same frames: the model trained on hand labels (left panes) and the incumbent (right). Top, a typical frame where both agree. Bottom, a selected worst case: the incumbent stacks seven boxes on two gates, and whichever duplicate wins suppression changes from frame to frame, a flicker no temporal filter removes.*
+*The cases the pipeline is judged on, each shown as the training label on the left and the shipped model's detection on the right. Row 1, a far gate: the label pipeline found the small gate in the distance and gave up on the near one running off the frame; the model still places three corners on the near one. Row 2, a gate cut by the frame: six labelled corners, and the model picks up one edge of the opening. Row 3, five gates at once: both sides put eight ordered corners on each. Row 4, an oblique view: the planar rings still land. Where the two columns differ is exactly where the detector adds to, or falls short of, the geometry.*
 
 ## What is original here
 
@@ -82,7 +78,7 @@ Same convention as the flight repo's `models/README.md` and the team's Roboflow 
     deploy/onnx/         the onnxruntime detector, PnP, dual detector, verify (never flown)
     deploy/orin/         torch harnesses that ran on the aircraft's computer
     research/            the one-off experiments behind every constant, with a table
-    docs/                the images on this page, and the script that draws them from the capture
+    docs/                the images on this page, and the script that renders them from the capture, the labels and the model
 
 `aigp_perception/paths.py` reads `AIGP_CAPTURE`, `AIGP_TEAMMATE_PT` and `AIGP_WORK`; the 1207-frame capture and `work/` are not in the repo. `eval/gallery.py` shells out to ImageMagick's `montage`. Install with `pip install -e .[detector,deploy]` for ultralytics/torch and onnxruntime/pillow respectively.
 
