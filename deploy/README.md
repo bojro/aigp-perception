@@ -1,4 +1,4 @@
-# deploy/ — two stacks, and which one has run on the aircraft
+# deploy/: two stacks, and which one has run on the aircraft
 
 `onnx/` is the candidate flight component: the gate detector on onnxruntime
 (`gate_detector.py`), a standalone eight-keypoint PnP (`gate_pose.py`), the

@@ -1,4 +1,4 @@
-# research/ — the experiments behind the engine's constants
+# research/: the experiments behind the engine's constants
 
 One-off scripts, kept because each one answered a question whose answer is now
 a number in `aigp_perception/autolabel_gate_pose.py` or a sentence in a README.

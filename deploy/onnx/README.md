@@ -17,7 +17,7 @@ in opposite directions and the combination beats either:
 | **hybrid, else teammate** | **97%** | **68%** | **2.52** | 19.0 | 41.4 |
 | both every frame, keep better | 97% | 70% | 2.47 | 42.9 | 46.6 |
 
-Split by how much of the frame the gate fills — close gates being the ones
+Split by how much of the frame the gate fills, close gates being the ones
 flown through, and the ones that matter:
 
 | gate > 30% of frame (n=548) | detected | posed | reproj px |
@@ -29,7 +29,7 @@ flown through, and the ones that matter:
 The teammate's model sees every close gate and returns corners too rough to
 solve. Ours poses them two and a half times more often but is near-blind to
 28% of them: on the frames it misses its median score is 0.078, so that is a
-hole in the model rather than a threshold to lower. The likely cause is ours —
+hole in the model rather than a threshold to lower. The likely cause is ours:
 the geometric labeller is weakest on close gates, so they were thin in the
 fine-tuning set.
 
@@ -45,7 +45,7 @@ model alone on posed-frame rate.
 
 **1. `REPROJ_ERR_MAX_PX = 2.0` is too tight** (`vision/yolo_pnp.py:125`). It was
 right for the simulator's exact corners. On real frames it rejects 74% of the
-gates the model finds, against 33% at 8 px — and what survives the looser cap
+gates the model finds, against 33% at 8 px, and what survives the looser cap
 is no jumpier: 16.3% of consecutive range steps exceed 1.5 m at 2 px, 11.8% at
 8 px. The cap was discarding good solves. This costs more solves than the whole
 model swap, and it applies whichever model is flown.
@@ -60,15 +60,15 @@ here prefers the PnP centre and falls back to the average.
 
 ## Files
 
-- `gate_detector.py` — the flight-facing API, same surface as
+- `gate_detector.py`: the flight-facing API, same surface as
   `inference.GateDetector`, on onnxruntime instead of torch (a Jetson wheel
   rather than a Jetson build). Reports its execution provider; a silent CPU
   fallback is the failure that hides best.
-- `gate_pose.py` — standalone eight-keypoint PnP, so the detector can be
+- `gate_pose.py`: standalone eight-keypoint PnP, so the detector can be
   checked without the flight repo. Where `vision/yolo_pnp.py` is importable,
   prefer it; the two agree to within a percent on solve rate.
-- `dual_detector.py` — the primary/fallback policy above.
-- `verify.py` — run this on the target before anything depends on it. Reports
+- `dual_detector.py`: the primary/fallback policy above.
+- `verify.py`: run this on the target before anything depends on it. Reports
   provider, latency at the real stream size, and how often a detection becomes
   a pose. Non-zero exit if something would bite in flight.
 
@@ -83,7 +83,7 @@ both, which is why their detection counts run higher.
 
 On the flight side the weights are chosen by `YOLO_POSE_MODEL_PATH`
 (`config.py:1135`); note its default, `models/gate_pose_v5.pt`, is not in the
-repo — `*.pt` is gitignored, so every deployment copies weights in by hand.
+repo, `*.pt` is gitignored, so every deployment copies weights in by hand.
 
 ## What is still unknown
 
@@ -95,4 +95,4 @@ repo — `*.pt` is gitignored, so every deployment copies weights in by hand.
 - The teammate's model may have trained on frames from this same capture
   (their notebook used it as a test set, and their physical set is from the
   same site). If so its numbers here are optimistic and the gap is wider than
-  it looks — but that cuts in our favour, so it does not change the decision.
+  it looks, but that cuts in our favour, so it does not change the decision.

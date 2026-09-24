@@ -1,6 +1,6 @@
 # aigp-perception
 
-**Gate-corner perception for Team Electric Fire's AI Grand Prix entry**: a geometric auto-labeller for the eight corners of the racing gate, a hybrid labeller that pairs it with a detector, the training and evaluation scripts behind the two shipped `yolov8n-pose` models, and an onnxruntime detector for the Jetson Orin. Nothing here is on the flight path; this repo's job is to hand the flight client a model and an honest number for how much to trust it.
+**Gate-corner perception for Team Electric Fire's AI Grand Prix entry**: a geometric auto-labeller for the eight corners of the racing gate, a hybrid labeller that pairs it with a detector, the training and evaluation scripts behind the two shipped `yolov8n-pose` models, and an onnxruntime detector for the Jetson Orin. Nothing here is on the flight path; this repo's job is to hand the flight client a model and a measured number for how much to trust it.
 
 The whole project is written up in [the paper](https://github.com/bojro/aigp-sim/blob/main/paper/paper.md) in the sibling `aigp-sim` repository; Section 4 is this repo.
 

@@ -7,7 +7,7 @@ assumed, 20 Sep 2026.
 
 Orin NX 16GB, JetPack 6 / L4T R36.4.3, Ubuntu 22.04, Python 3.10.12, CUDA 12.6.
 Reachable over Wi-Fi as `dcl-orin` (the address is DHCP and moves; it was
-`192.168.13.202`). USB networking does **not** come up on macOS — the gadget
+`192.168.13.202`). USB networking does **not** come up on macOS, the gadget
 enumerates and gives a serial console, but Apple dropped RNDIS, so
 `192.168.55.1` has no interface on a Mac. Use Wi-Fi, or a Windows host.
 
@@ -43,20 +43,20 @@ the same frame costs ~61 ms, which is why `live_compare.py` is a viewing tool
 and not a flight configuration.
 
 Under both models the GPU sits at `GR3D_FREQ 99%`, RAM at 2.3 of 15.6 GB, and
-temperatures at 62-67 °C — saturated but nowhere near throttling. The board is
+temperatures at 62-67 °C, saturated but nowhere near throttling. The board is
 on the **25W** profile, not MAXN, so there is headroom nobody has taken yet.
 
 ## The scripts
 
-- `live_compare.py` — both models on the same live frame, side by side, served
+- `live_compare.py`: both models on the same live frame, side by side, served
   as MJPEG to a browser. Frames are handed to clients on a condition variable
   with a sequence number: a viewer that polls a shared buffer on a timer sends
   the same picture several times while the next is still being computed, the
   browser queues every copy, and the view slides further behind the longer you
   watch. That was a real bug here and this is the fix.
-- `capture.py` — grab N stills once, so an offline comparison judges both
+- `capture.py`: grab N stills once, so an offline comparison judges both
   models on identical pictures.
-- `bench_torch.py` — the latency table above. Torch, through the teammate's
+- `bench_torch.py`: the latency table above. Torch, through the teammate's
   `inference.py`; no onnxruntime number exists for the Orin.
 
 All three read only the camera. None opens MSP, touches `/dev/ttyTHS1`, or
