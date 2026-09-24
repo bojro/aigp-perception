@@ -4,6 +4,14 @@
 
 The whole project is written up in [the paper](https://github.com/bojro/aigp-sim/blob/main/paper/paper.md) in the sibling `aigp-sim` repository; Section 4 is this repo.
 
+![The shipped model as the camera circles a gate](docs/hand497_orbit.gif)
+
+*The camera circling one gate through the first hundred frames of the walk-around: the eight corners keep their ids as the view swings around the gate, which is what a pose solve needs.*
+
+![The shipped model holding one gate while the camera sways](docs/hand497_sway.gif)
+
+*The same model holding one gate at mid range while the camera sways: the corners stay on the gate, and the far gate behind it is picked up as well. Frames 29 to 79 of the first walk-around.*
+
 ![The shipped model on the aircraft's own camera, walking through the hall toward a gate](docs/hand497_approach.gif)
 
 *`gate_pose_hand497.onnx`, the model this repo ships, on forty raw frames from the aircraft's camera as it walks through the hall and closes on a gate, run through the same detector class the flight code uses. Cyan is the outer ring, yellow the opening, numbers are the corner ids; corners below the 0.25 keypoint threshold are left out, so what is drawn is what the aircraft would get.*
@@ -25,20 +33,12 @@ The last row matters most: every accuracy figure in this repo before the human l
 
 *Four difficult cases, each shown as the training label on the left and the shipped model's detection on the right. Row 1, far gates: the label pipeline traced one of the two; the model finds both. Row 2, a gate cut by the frame: six labelled corners, and the model places one edge of the opening. Row 3, five gates at once: both sides put eight ordered corners on each. Row 4, an oblique view: the planar rings still land. Where the two columns differ is where the detector adds to, or falls short of, the geometry it learned from.*
 
-![The shipped model holding one gate while the camera sways](docs/hand497_sway.gif)
-
-*The same model holding one gate at mid range while the camera sways: the corners stay on the gate, and the far gate behind it is picked up as well. Frames 29 to 79 of the first walk-around.*
-
 ## Method
 
 Fine-tuning a YOLO pose model is standard. Two parts of the pipeline are specific to this task:
 
 * **Labelling by measurement rather than recognition.** A gate is an orange ring, so its colour mask has a hole; in the contour hierarchy the parent is the outer square and the child is the opening. Ring identity comes from topology, which sidesteps the problem that defeats vision-language models on this task: telling eight similar corners apart. From there it is line fitting, corner intersection (corners past the frame edge included), sub-pixel edge refinement and one homography over all eight points.
 * **Detector proposes, geometry disposes.** The detector finds gates the geometry cannot trace; the geometry refines each proposal to the image's edges and applies its own per-corner checks. That doubled the yield at the same accuracy, and the detector's confidence could not have done it: recovered proposals scored 0.53, rejected ones 0.56.
-
-![The shipped model as the camera circles a gate](docs/hand497_orbit.gif)
-
-*The camera circling one gate through the first hundred frames of the walk-around: the eight corners keep their ids as the view swings around the gate, which is what a pose solve needs.*
 
 ## The gate
 
