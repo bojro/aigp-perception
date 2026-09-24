@@ -2,11 +2,14 @@
 
 Each one carries one message:
 
-  walkaround_labels_vs_hand497.gif
-                          the same frames of a walk around the gate, twice: left, the hybrid TRAINING
-                          labels the pipeline wrote (what the model learned from); right, the shipped
-                          model gate_pose_hand497.onnx run on the raw frame (what the flight code
-                          gets), corners below the 0.25 keypoint threshold left out
+  hand497_approach.gif    the shipped model, gate_pose_hand497.onnx, run on the raw frames of a walk
+                          through the hall that ends close on a gate (the window is chosen by the
+                          labels: the gate that grows the most); corners below the 0.25 keypoint
+                          threshold left out, so what is drawn is what the flight code gets
+  hand497_orbit.gif       the same model on the first hundred frames of the first session, the camera
+                          circling one gate
+  hand497_sway.gif        the same model holding one gate at mid range while the camera sways side to
+                          side (frames 29-79 of the first session), the corners staying put
   hard_cases_labels_vs_hand497.jpg
                           four frames the pipeline is judged on (a far gate, a close gate with corners
                           off the frame, several gates at once, an oblique view), each shown twice:
@@ -88,39 +91,39 @@ def best_window(n=40, step=1):
             if sc > best_score: best, best_score = f"{prefix}_{a:06d}", sc
     return best, best_score
 
-def side_by_side_gif(start=None, n=40, step=1, width=480, fps=5, weights=None):
-    """Left: the hybrid training labels. Right: gate_pose_hand497.onnx on the raw frame, through the flight-facing detector class."""
-    import cv2
+def _detector(weights=None):
+    import cv2  # noqa: F401
     sys.path.insert(0, os.path.join(os.path.dirname(OUT), "deploy", "onnx"))
     from gate_detector import GateDetector
-    det = GateDetector(weights or os.path.join(os.path.dirname(OUT), "models", "gate_pose_hand497.onnx"), conf=0.4, kpt_conf=0.25, provider="cpu")
-    try: font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 15)
-    except OSError: font = ImageFont.load_default()
-    if start is None:
-        start, score = best_window(n=n, step=step); print("window", start, "gate growth", round(score, 2))
-    stems = [f"{start[:-6]}{int(start[-6:]) + k * step:06d}" for k in range(n)]
+    return GateDetector(weights or os.path.join(os.path.dirname(OUT), "models", "gate_pose_hand497.onnx"), conf=0.4, kpt_conf=0.25, provider="cpu")
+
+def model_gif(name, stems, det, width=720, fps=5):
+    """gate_pose_hand497.onnx on the raw frames, drawn the way the flight code would see them."""
+    import cv2
     frames, n_gates, n_full = [], 0, 0
     for st in stems:
         path = os.path.join(CAPTURE, st + ".jpg")
-        if not os.path.exists(path) or not label_path(st): continue
+        if not os.path.exists(path): continue
         bgr = cv2.imread(path); H, W = bgr.shape[:2]
-        h = int(H * width / W); gap, strip = 6, 22
-        small = Image.fromarray(bgr[..., ::-1].copy()).resize((width, h), Image.LANCZOS)
-        left = draw(small.copy(), gates(st))
         gs = []
         for g in det.detect(cv2.resize(bgr, (640, 360))):
             gs.append(((0, 0, 0, 0), [(x / 640, y / 360, bool(v)) for (x, y), v in zip(g.keypoints, g.kpt_visible)]))
             n_gates += 1; n_full += int(g.kpt_visible.sum() == 8)
-        right = draw(small.copy(), gs)
-        sheet = Image.new("RGB", (2 * width + gap, h + strip), (13, 17, 23))
-        sheet.paste(left, (0, strip)); sheet.paste(right, (width + gap, strip))
-        d = ImageDraw.Draw(sheet)
-        d.text((6, 4), "training labels (hybrid pipeline)", fill=(220, 220, 220), font=font)
-        d.text((width + gap + 6, 4), "gate_pose_hand497.onnx detections", fill=(220, 220, 220), font=font)
-        frames.append(sheet.quantize(colors=96, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.FLOYDSTEINBERG))
-    out = os.path.join(OUT, "walkaround_labels_vs_hand497.gif")
+        im = Image.fromarray(bgr[..., ::-1].copy()).resize((width, int(H * width / W)), Image.LANCZOS)
+        frames.append(draw(im, gs).quantize(colors=96, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.FLOYDSTEINBERG))
+    out = os.path.join(OUT, name)
     frames[0].save(out, save_all=True, append_images=frames[1:], duration=int(1000 / fps), loop=0, optimize=True)
-    print(out, len(frames), "frames", round(os.path.getsize(out) / 1e6, 1), "MB;", n_gates, "gates found by the model,", n_full, "with all 8 corners above 0.25")
+    print(out, len(frames), "frames", round(os.path.getsize(out) / 1e6, 1), "MB;", n_gates, "gates found,", n_full, "with all 8 corners above 0.25")
+
+def approach_gif(det, n=40):
+    start, score = best_window(n=n); print("approach window", start, "gate growth", round(score, 2))
+    model_gif("hand497_approach.gif", [f"{start[:-6]}{int(start[-6:]) + k:06d}" for k in range(n)], det)
+
+def orbit_gif(det, start=0, n=50, step=2):
+    model_gif("hand497_orbit.gif", [f"0919_214639_{start + k * step:06d}" for k in range(n)], det, width=600)
+
+def sway_gif(det, start=29, n=50):
+    model_gif("hand497_sway.gif", [f"0919_214639_{start + k:06d}" for k in range(n)], det, width=600, fps=6)
 
 def pick_hard_cases(det=None):
     """Choose by the labels themselves: far, cut off, crowded, oblique. The far case also asks the model to agree
@@ -149,12 +152,9 @@ def pick_hard_cases(det=None):
     oblique = max((st for st in stats if stats[st]["vis"] == 8 and stats[st]["h"] > 0.3), key=lambda st: stats[st]["skew"])
     return [(far, "far gate"), (cut, "cut by the frame"), (crowd, "several gates"), (oblique, "oblique")]
 
-def hard_cases_pairs(pane=700, weights=None):
+def hard_cases_pairs(det, pane=700):
     """Rows: the four hard cases. Columns: the training label | hand497's detection on the raw frame."""
     import cv2
-    sys.path.insert(0, os.path.join(os.path.dirname(OUT), "deploy", "onnx"))
-    from gate_detector import GateDetector
-    det = GateDetector(weights or os.path.join(os.path.dirname(OUT), "models", "gate_pose_hand497.onnx"), conf=0.4, kpt_conf=0.25, provider="cpu")
     try: font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 17)
     except OSError: font = ImageFont.load_default()
     picks = pick_hard_cases(det); gap, strip = 6, 26
@@ -176,4 +176,5 @@ def hard_cases_pairs(pane=700, weights=None):
     out = os.path.join(OUT, "hard_cases_labels_vs_hand497.jpg"); sheet.save(out, quality=86); print(out)
 
 if __name__ == "__main__":
-    side_by_side_gif(); hard_cases_pairs()
+    det = _detector()
+    approach_gif(det); orbit_gif(det); sway_gif(det); hard_cases_pairs(det)
