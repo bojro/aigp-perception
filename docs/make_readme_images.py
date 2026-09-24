@@ -7,7 +7,7 @@ Each one carries one message:
                           labels: the gate that grows the most); corners below the 0.25 keypoint
                           threshold left out, so what is drawn is what the flight code gets
   hand497_sway.gif        the same model holding one gate at mid range while the camera sways side to
-                          side (frames 29-79 of the first session), the corners staying put
+                          side (frames 76-110 of the first session, the stretch with the most motion)
   hard_cases_labels_vs_hand497.jpg
                           four frames the pipeline is judged on (a far gate, a close gate with corners
                           off the frame, several gates at once, an oblique view), each shown twice:
@@ -120,7 +120,7 @@ def approach_gif(det, n=40):
 def orbit_gif(det, start=0, n=50, step=2):
     model_gif("hand497_orbit.gif", [f"0919_214639_{start + k * step:06d}" for k in range(n)], det, width=600)
 
-def sway_gif(det, start=29, n=50):
+def sway_gif(det, start=76, n=34):
     model_gif("hand497_sway.gif", [f"0919_214639_{start + k:06d}" for k in range(n)], det, width=600, fps=6)
 
 def pick_hard_cases(det=None):

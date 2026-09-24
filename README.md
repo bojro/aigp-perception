@@ -4,9 +4,9 @@
 
 The whole project is written up in [the paper](https://github.com/bojro/aigp-sim/blob/main/paper/paper.md) in the sibling `aigp-sim` repository; Section 4 is this repo.
 
-![The shipped model holding one gate while the camera sways](docs/hand497_sway.gif)
+![The shipped model as the camera walks up to and through a gate](docs/hand497_sway.gif)
 
-*`gate_pose_hand497.onnx`, the model this repo ships, holding one gate at mid range while the camera sways: the corners stay on the gate and keep their ids, and the far gate behind it is picked up as well. Raw frames from the aircraft's own camera, run through the same detector class the flight code uses; corners below the 0.25 keypoint threshold are left out, so what is drawn is what the aircraft would get. Cyan is the outer ring, yellow the opening.*
+*`gate_pose_hand497.onnx`, the model this repo ships, as the camera walks up to a gate and through it: the corners stay on the gate and keep their ids until the frame runs off the edges, and the gates behind are picked up on the way. Raw frames from the aircraft's own camera, run through the same detector class the flight code uses; corners below the 0.25 keypoint threshold are left out, so what is drawn is what the aircraft would get. Cyan is the outer ring, yellow the opening.*
 
 ![The shipped model as the camera moves around a gate and closes on it](docs/hand497_approach.gif)
 
