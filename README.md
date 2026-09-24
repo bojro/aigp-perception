@@ -6,7 +6,7 @@ The whole project is written up in [the paper](https://github.com/bojro/aigp-sim
 
 ![The labeller's eight ordered corners on the aircraft's own camera as it moves around a gate](docs/labels_walkaround.gif)
 
-*What this repo produces: on every frame of a walk around the gate, the same eight corners in the same order, cyan for the outer ring and yellow for the opening, drawn only between corners that were actually seen. Labels from the hybrid pipeline on the aircraft's own camera, 19 September.*
+*What this repo produces. The corner positions are read straight from the label files the hybrid pipeline wrote for the walk-around capture (`datasets/hybrid/*/labels/*.txt`, YOLO-pose format) and rendered onto the raw frames from the aircraft's camera, 19 September: cyan for the outer ring, yellow for the opening, an edge only between two corners the labeller marked visible. On every frame, the same eight corners in the same order.*
 
 ## Results at a glance
 
@@ -23,7 +23,7 @@ The last row is the one to remember. Every accuracy figure in this repo before t
 
 ![Four hard cases: a far gate, a gate cut by the frame, two gates at once, an oblique view](docs/labels_hard_cases.jpg)
 
-*The cases the pipeline is judged on. Top left: the far gate is labelled while the near one, running off the frame, could not be traced by geometry alone and went to review, which is the gap the detector fills. Top right: a close gate with six of eight corners in view. Bottom left: five gates in one frame, each with its own ordered corners. Bottom right: an oblique view, where a planar homography still lands both rings.*
+*The cases the pipeline is judged on, rendered the same way from the label files. Top left: the far gate is labelled while the near one, running off the frame, could not be traced by geometry alone and went to review, which is the gap the detector fills. Top right: a close gate with six of eight corners in view. Bottom left: five gates in one frame, each with its own ordered corners. Bottom right: an oblique view, where a planar homography still lands both rings.*
 
 ![The hand-labelled model against the incumbent on the same frames](docs/detector_ab_gallery.jpg)
 
