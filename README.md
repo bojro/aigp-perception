@@ -97,4 +97,4 @@ Same convention as the flight repo's `models/README.md` and our Roboflow exports
 * [`bojro/aigp-sim`](https://github.com/bojro/aigp-sim): the simulator, the plant, the policies, and the paper.
 * [`Code-Red-Cables/AI_GP`](https://github.com/Code-Red-Cables/AI_GP) (private): the flight client and the on-site work.
 
-We are Team Electric Fire, Cornell University: Bojro Das (College of Arts and Sciences), Geneustace Wicaksono, Etienne Sasenarine, John Apessos, Grant Lin, Aaron Legg and Narayan Topalli (College of Engineering).
+We are Team Electric Fire, Cornell University: Geneustace Wicaksono, Bojro Das (College of Arts and Sciences), Etienne Sasenarine, John Apessos, Grant Lin, Narayan Topalli and Aaron Legg (College of Engineering).
