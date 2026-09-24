@@ -1,6 +1,6 @@
 # aigp-perception
 
-**Gate-corner perception for Team Electric Fire's AI Grand Prix entry**: a geometric auto-labeller for the eight corners of the racing gate, a hybrid labeller that pairs it with a detector, the training and evaluation scripts behind the two shipped `yolov8n-pose` models, and an onnxruntime detector for the Jetson Orin. Nothing here is on the flight path; this repo's job is to hand the flight client a model and a measured number for how much to trust it.
+**Gate-corner perception for our AI Grand Prix entry** (Team Electric Fire): a geometric auto-labeller for the eight corners of the racing gate, a hybrid labeller that pairs it with a detector, the training and evaluation scripts behind the two shipped `yolov8n-pose` models, and an onnxruntime detector for the Jetson Orin. Nothing here is on the flight path; this repo's job is to hand the flight client a model and a measured number for how much to trust it.
 
 The whole project is written up in [the paper](https://github.com/bojro/aigp-sim/blob/main/paper/paper.md) in the sibling `aigp-sim` repository; Section 4 is this repo.
 
@@ -43,7 +43,7 @@ Square annulus, front face planar: outer boundary 2700 mm, flyable opening 1500 
     3 ───────────── 2        flipud 0                      (a vertical flip would
                                                            swap ring identity silently)
 
-Same convention as the flight repo's `models/README.md` and the team's Roboflow exports, so labels interchange without translation.
+Same convention as the flight repo's `models/README.md` and our Roboflow exports, so labels interchange without translation.
 
 ## Further documentation
 
@@ -62,7 +62,7 @@ Same convention as the flight repo's `models/README.md` and the team's Roboflow 
 
 ## Limitations
 
-* **Nothing here has flown.** `deploy/onnx/` has never run on the aircraft; `deploy/orin/` ran, on the teammate's torch stack, with the camera at a bench and then at one gate.
+* **Nothing here has flown.** `deploy/onnx/` has never run on the aircraft; `deploy/orin/` ran, on the torch stack from our flight client, with the camera at a bench and then at one gate.
 * **All training data is a person walking around a gate**, at 2 fps, not a drone flying one. The only in-flight capture contained no gate.
 * **`hand434` and `hand497` have no held-out number.** Both trained on every frame we had, by choice. Their training curves measure fit, not generalisation. The held-out result above is from a sibling checkpoint trained with a clean split.
 * The PnP reprojection cap of 2 px in the flight repo rejects 74% of real solves; 8 px keeps them without adding jitter (`deploy/onnx/README.md`).
@@ -93,4 +93,4 @@ Same convention as the flight repo's `models/README.md` and the team's Roboflow 
 * [`bojro/aigp-sim`](https://github.com/bojro/aigp-sim): the simulator, the plant, the policies, and the paper.
 * [`Code-Red-Cables/AI_GP`](https://github.com/Code-Red-Cables/AI_GP) (private): the flight client and the on-site work.
 
-Team Electric Fire: Bojro Das, Geneustace Wicaksono, Etienne Sasenarine, John Apessos, Grant Lin, Rocky Shao.
+We are Team Electric Fire: Bojro Das, Geneustace Wicaksono, Etienne Sasenarine, John Apessos, Grant Lin, Rocky Shao.
