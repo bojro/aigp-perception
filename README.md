@@ -2,7 +2,7 @@
 
 **Gate-corner perception for our AI Grand Prix entry** (Team Electric Fire): a geometric auto-labeller for the eight corners of the racing gate, a hybrid labeller that pairs it with a detector, the training and evaluation scripts behind the two shipped `yolov8n-pose` models, and an onnxruntime detector for the Jetson Orin. Nothing here is on the flight path; this repo's job is to hand the flight client a model and a measured number for how much to trust it.
 
-The whole project is written up in [the paper](https://github.com/bojro/aigp-sim/blob/main/paper/paper.md) in the sibling `aigp-sim` repository; Section 4 is this repo.
+The whole project is written up in [the paper](https://github.com/bojro/aigp-sim/blob/main/paper/paper.md) ([PDF](https://github.com/bojro/aigp-sim/blob/main/paper/paper.pdf)) in the sibling `aigp-sim` repository; Section 4 is this repo.
 
 ![The shipped model as the camera walks up to and through a gate](docs/hand497_sway.gif)
 
@@ -97,4 +97,4 @@ Same convention as the flight repo's `models/README.md` and our Roboflow exports
 * [`bojro/aigp-sim`](https://github.com/bojro/aigp-sim): the simulator, the plant, the policies, and the paper.
 * [`Code-Red-Cables/AI_GP`](https://github.com/Code-Red-Cables/AI_GP) (private): the flight client and the on-site work.
 
-We are Team Electric Fire: Bojro Das, Geneustace Wicaksono, Etienne Sasenarine, John Apessos, Grant Lin, Rocky Shao.
+We are Team Electric Fire, Cornell University: Bojro Das (College of Arts and Sciences), Geneustace Wicaksono, Etienne Sasenarine, John Apessos, Grant Lin, Aaron Legg and Narayan Topalli (College of Engineering).
